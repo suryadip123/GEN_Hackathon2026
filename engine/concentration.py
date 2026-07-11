@@ -1,0 +1,228 @@
+"""
+Task 2 - Deterministic Concentration & Risk Metrics Engine
+
+Computes issuer / sector / geography / asset-class concentration, HHI, and
+(where price history is available) correlation clusters — all in code, no
+Claude call. Claude only ever sees the numbers this module produces.
+
+Design principles carried over from ingestion/normalize.py:
+- Exposure is computed on absolute market value (shorts count as exposure,
+  not an offset), with direction preserved separately per position.
+- Positions missing a required grouping tag (e.g. sector) are excluded from
+  that specific calc and reported as excluded, never silently folded into
+  a bucket or zeroed out.
+"""
+
+import pandas as pd
+from dataclasses import dataclass, field
+
+DEFAULT_LIMITS = {
+    "single_issuer_limit_pct": 8.0,
+    "sector_limit_pct": 25.0,
+    "geography_limit_pct": 70.0,
+    "asset_class_limit_pct": 60.0,
+    "correlation_threshold": 0.85,
+    "warning_buffer_pct": 3.0,
+}
+
+UNASSIGNED_ISSUER = "Unassigned (no issuer tag)"
+
+
+@dataclass
+class ConcentrationEntry:
+    name: str
+    market_value: float
+    pct: float
+    limit: float
+    status: str  # OK | WARNING | BREACH
+
+
+@dataclass
+class CorrelationCluster:
+    holdings: list
+    min_corr: float
+    status: str = "FLAGGED"
+
+
+@dataclass
+class ConcentrationReport:
+    portfolio_id: str
+    nav: float
+    issuer_concentration: list = field(default_factory=list)
+    sector_concentration: list = field(default_factory=list)
+    geography_concentration: list = field(default_factory=list)
+    asset_class_concentration: list = field(default_factory=list)
+    hhi: float = 0.0
+    correlation_clusters: list = field(default_factory=list)
+    excluded_from_sector: list = field(default_factory=list)
+    excluded_from_geography: list = field(default_factory=list)
+
+
+def _status(pct: float, limit: float, warning_buffer_pct: float) -> str:
+    if pct > limit:
+        return "BREACH"
+    if pct > limit - warning_buffer_pct:
+        return "WARNING"
+    return "OK"
+
+
+def _group_and_compute(df: pd.DataFrame, group_col: str, nav: float,
+                        limit: float, warning_buffer_pct: float):
+    """Group by group_col on abs(market_value), compute pct of NAV, classify
+    against limit. Rows where group_col is null are excluded and their
+    position_ids returned separately rather than folded into a bucket.
+    """
+    present = df[df[group_col].notna()]
+    excluded_ids = df.loc[df[group_col].isna(), "position_id"].tolist()
+
+    if present.empty:
+        return [], excluded_ids
+
+    totals = present.groupby(group_col)["abs_market_value"].sum().sort_values(ascending=False)
+
+    entries = []
+    for name, mv in totals.items():
+        pct = (mv / nav * 100) if nav else 0.0
+        entries.append(ConcentrationEntry(
+            name=name,
+            market_value=float(mv),
+            pct=round(float(pct), 2),
+            limit=limit,
+            status=_status(pct, limit, warning_buffer_pct),
+        ))
+    return entries, excluded_ids
+
+
+def compute_hhi(df: pd.DataFrame, nav: float) -> float:
+    """Herfindahl-Hirschman Index across individual positions, on the
+    standard 0-10000 scale (sum of squared percentage market shares).
+    Uses absolute market value as exposure.
+    """
+    if not nav:
+        return 0.0
+    shares_pct = df["abs_market_value"] / nav * 100
+    return round(float((shares_pct ** 2).sum()), 1)
+
+
+def compute_correlation_clusters(positions: list, threshold: float) -> list:
+    """Pairwise correlation on price_history, where provided. price_history
+    is optional per design_document.md §13 - positions without it are
+    simply excluded from this calc, not flagged as a data-quality issue.
+    """
+    priced = {
+        p["position_id"]: p["price_history"]
+        for p in positions
+        if p.get("price_history")
+    }
+    if len(priced) < 2:
+        return []
+
+    price_df = pd.DataFrame(priced)
+    corr = price_df.corr()
+
+    clusters = []
+    ids = list(priced.keys())
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            c = corr.loc[ids[i], ids[j]]
+            if pd.notna(c) and c >= threshold:
+                clusters.append(CorrelationCluster(
+                    holdings=[ids[i], ids[j]],
+                    min_corr=round(float(c), 3),
+                ))
+    return clusters
+
+
+def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport:
+    """Compute all §6 concentration metrics for a normalized portfolio.
+
+    Accepts either a NormalizedPortfolio (from ingestion.normalize) or a
+    raw dict with the same shape (portfolio_id, nav, positions).
+    """
+    limits = {**DEFAULT_LIMITS, **(limits or {})}
+
+    portfolio_id = getattr(portfolio, "portfolio_id", None) or portfolio.get("portfolio_id", "UNKNOWN")
+    nav = getattr(portfolio, "nav", None)
+    if nav is None:
+        nav = portfolio.get("nav", 0)
+    positions = getattr(portfolio, "positions", None)
+    if positions is None:
+        positions = portfolio.get("positions", [])
+
+    if not positions:
+        return ConcentrationReport(portfolio_id=portfolio_id, nav=nav)
+
+    df = pd.DataFrame(positions)
+    df["abs_market_value"] = df["market_value"].abs()
+
+    # issuer: cash and similar positions may legitimately have no issuer tag
+    # (issuer: null in the source data) - group them under a labeled bucket
+    # rather than excluding them, since "unassigned issuer" is itself a
+    # meaningful (low-risk) concentration fact, unlike a missing sector tag.
+    df["issuer_grouped"] = df["issuer"].fillna(UNASSIGNED_ISSUER)
+    issuer_entries, _ = _group_and_compute(
+        df.assign(issuer=df["issuer_grouped"]), "issuer", nav,
+        limits["single_issuer_limit_pct"], limits["warning_buffer_pct"],
+    )
+
+    sector_entries, excluded_sector = _group_and_compute(
+        df, "sector", nav, limits["sector_limit_pct"], limits["warning_buffer_pct"],
+    )
+
+    geography_entries, excluded_geo = _group_and_compute(
+        df, "geography", nav, limits["geography_limit_pct"], limits["warning_buffer_pct"],
+    )
+
+    asset_class_entries, _ = _group_and_compute(
+        df, "asset_class", nav, limits["asset_class_limit_pct"], limits["warning_buffer_pct"],
+    )
+
+    hhi = compute_hhi(df, nav)
+    clusters = compute_correlation_clusters(positions, limits["correlation_threshold"])
+
+    return ConcentrationReport(
+        portfolio_id=portfolio_id,
+        nav=nav,
+        issuer_concentration=issuer_entries,
+        sector_concentration=sector_entries,
+        geography_concentration=geography_entries,
+        asset_class_concentration=asset_class_entries,
+        hhi=hhi,
+        correlation_clusters=clusters,
+        excluded_from_sector=excluded_sector,
+        excluded_from_geography=excluded_geo,
+    )
+
+
+if __name__ == "__main__":
+    import sys
+    import os
+
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from ingestion.normalize import load_portfolio, normalize_portfolio
+
+    raw = load_portfolio("data/sample_portfolios/port_2026_0442.json")
+    portfolio = normalize_portfolio(raw)
+    report = compute_concentration(portfolio)
+
+    print(f"Portfolio: {portfolio.fund_name} ({report.portfolio_id})")
+    print(f"NAV: {report.nav:,.0f} {portfolio.base_currency}")
+    print(f"HHI: {report.hhi}")
+
+    def _print_group(title, entries):
+        print(f"\n{title}:")
+        for e in entries:
+            print(f"  {e.name:35s} {e.pct:7.2f}%  limit {e.limit:5.1f}%  [{e.status}]")
+
+    _print_group("Issuer concentration", report.issuer_concentration)
+    _print_group("Sector concentration", report.sector_concentration)
+    _print_group("Geography concentration", report.geography_concentration)
+    _print_group("Asset class concentration", report.asset_class_concentration)
+
+    if report.excluded_from_sector:
+        print(f"\nExcluded from sector calc (missing tag): {report.excluded_from_sector}")
+    if report.excluded_from_geography:
+        print(f"Excluded from geography calc (missing tag): {report.excluded_from_geography}")
+
+    print(f"\nCorrelation clusters (threshold {DEFAULT_LIMITS['correlation_threshold']}): "
+          f"{len(report.correlation_clusters)} found (no price_history in sample data)")
