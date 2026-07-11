@@ -56,6 +56,7 @@ class ConcentrationReport:
     correlation_clusters: list = field(default_factory=list)
     excluded_from_sector: list = field(default_factory=list)
     excluded_from_geography: list = field(default_factory=list)
+    excluded_from_issuer: list = field(default_factory=list)
 
 
 def _status(pct: float, limit: float, warning_buffer_pct: float) -> str:
@@ -155,13 +156,19 @@ def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport
     df = pd.DataFrame(positions)
     df["abs_market_value"] = df["market_value"].abs()
 
-    # issuer: cash and similar positions may legitimately have no issuer tag
-    # (issuer: null in the source data) - group them under a labeled bucket
-    # rather than excluding them, since "unassigned issuer" is itself a
-    # meaningful (low-risk) concentration fact, unlike a missing sector tag.
-    df["issuer_grouped"] = df["issuer"].fillna(UNASSIGNED_ISSUER)
+    # issuer: cash isn't single-name/issuer risk, so it's excluded from the
+    # issuer concentration calc entirely (like a missing sector tag), rather
+    # than grouped into a bucket - applying the single-issuer limit to it
+    # would produce a misleading BREACH. Non-cash positions that still lack
+    # an issuer tag are grouped under a labeled bucket instead, since
+    # "unassigned issuer" is itself a meaningful (low-risk) concentration
+    # fact for those.
+    is_cash = df["asset_class"] == "Cash"
+    excluded_issuer = df.loc[is_cash, "position_id"].tolist()
+    issuer_df = df.loc[~is_cash].copy()
+    issuer_df["issuer"] = issuer_df["issuer"].fillna(UNASSIGNED_ISSUER)
     issuer_entries, _ = _group_and_compute(
-        df.assign(issuer=df["issuer_grouped"]), "issuer", nav,
+        issuer_df, "issuer", nav,
         limits["single_issuer_limit_pct"], limits["warning_buffer_pct"],
     )
 
@@ -191,6 +198,7 @@ def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport
         correlation_clusters=clusters,
         excluded_from_sector=excluded_sector,
         excluded_from_geography=excluded_geo,
+        excluded_from_issuer=excluded_issuer,
     )
 
 
@@ -223,6 +231,8 @@ if __name__ == "__main__":
         print(f"\nExcluded from sector calc (missing tag): {report.excluded_from_sector}")
     if report.excluded_from_geography:
         print(f"Excluded from geography calc (missing tag): {report.excluded_from_geography}")
+    if report.excluded_from_issuer:
+        print(f"Excluded from issuer calc (cash): {report.excluded_from_issuer}")
 
     print(f"\nCorrelation clusters (threshold {DEFAULT_LIMITS['correlation_threshold']}): "
           f"{len(report.correlation_clusters)} found (no price_history in sample data)")
