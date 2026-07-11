@@ -1,0 +1,330 @@
+[
+  {
+    "timestamp": "2026-07-11T08:14:51.238318+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "error_type": "api_error_401",
+    "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CcuwHhbfJZjofPtG9y1Pw'}"
+  },
+  {
+    "timestamp": "2026-07-11T08:15:41.157172+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "error_type": "api_error_400",
+    "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': \"tools.0.custom: For 'integer' type, properties maximum, minimum are not supported\"}, 'request_id': 'req_011CcuwMNRrgHBXJfkARc8xM'}"
+  },
+  {
+    "timestamp": "2026-07-11T08:16:36.570860+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 33.41,
+    "input_tokens": 2012,
+    "output_tokens": 2048,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.028519,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-11T08:17:58.358971+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 21.15,
+    "input_tokens": 2012,
+    "output_tokens": 2152,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1606,
+    "cost_usd": 0.025865,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-11T08:25:46.267711+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 24.39,
+    "input_tokens": 2012,
+    "output_tokens": 2322,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.031259,
+    "severity": "HIGH",
+    "confidence_pct": 80
+  },
+  {
+    "timestamp": "2026-07-11T08:43:29.613577+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 23.98,
+    "input_tokens": 2012,
+    "output_tokens": 2371,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.031749,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-11T08:43:29.615060+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 82,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T08:43:35.419560+00:00",
+    "portfolio_id": "CRITICAL-TEST",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 1100,
+    "output_tokens": 528,
+    "cost_usd": 0.00374,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-11T08:43:35.422507+00:00",
+    "portfolio_id": "CRITICAL-TEST",
+    "severity": "CRITICAL",
+    "confidence_pct": 95,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T08:43:35.423284+00:00",
+    "portfolio_id": "LOW-TEST",
+    "severity": "LOW",
+    "confidence_pct": 90,
+    "actions_taken": [
+      "audit_log"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T08:44:39.409801+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 23.47,
+    "input_tokens": 2012,
+    "output_tokens": 2265,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1606,
+    "cost_usd": 0.026995,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-11T08:57:42.991027+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.51,
+    "input_tokens": 2012,
+    "output_tokens": 2251,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.030549,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-11T08:58:06.623789+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.48,
+    "input_tokens": 2012,
+    "output_tokens": 2245,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1606,
+    "cost_usd": 0.026795,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-11T08:58:06.625033+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 82,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T08:58:13.563509+00:00",
+    "portfolio_id": "CRITICAL-TEST",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 1028,
+    "output_tokens": 492,
+    "cost_usd": 0.003488,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-11T08:58:13.566111+00:00",
+    "portfolio_id": "CRITICAL-TEST",
+    "severity": "CRITICAL",
+    "confidence_pct": 95,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T08:58:13.569788+00:00",
+    "portfolio_id": "LOW-TEST",
+    "severity": "LOW",
+    "confidence_pct": 90,
+    "actions_taken": [
+      "audit_log"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T09:10:04.603227+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 21.01,
+    "input_tokens": 2012,
+    "output_tokens": 2039,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.028429,
+    "severity": "HIGH",
+    "confidence_pct": 80
+  },
+  {
+    "timestamp": "2026-07-11T09:10:04.605021+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 80,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T09:10:10.174403+00:00",
+    "portfolio_id": "CRITICAL-TEST",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 873,
+    "output_tokens": 443,
+    "cost_usd": 0.003088,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-11T09:10:10.175047+00:00",
+    "portfolio_id": "CRITICAL-TEST",
+    "severity": "CRITICAL",
+    "confidence_pct": 95,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T09:10:10.175687+00:00",
+    "portfolio_id": "LOW-TEST",
+    "severity": "LOW",
+    "confidence_pct": 90,
+    "actions_taken": [
+      "audit_log"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T09:19:28.460242+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.01,
+    "input_tokens": 2012,
+    "output_tokens": 2199,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.030029,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-11T09:21:19.226891+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 85,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T09:34:01.858209+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.2,
+    "input_tokens": 2012,
+    "output_tokens": 2182,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.029859,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-11T09:34:26.636956+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 85,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-11T09:47:01.149494+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.17,
+    "input_tokens": 2012,
+    "output_tokens": 2139,
+    "cache_creation_input_tokens": 1606,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.029429,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-11T09:48:06.397944+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 21.83,
+    "input_tokens": 2012,
+    "output_tokens": 2173,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1606,
+    "cost_usd": 0.026075,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-11T09:50:40.594493+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.15,
+    "input_tokens": 2012,
+    "output_tokens": 2140,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1606,
+    "cost_usd": 0.025745,
+    "severity": "HIGH",
+    "confidence_pct": 80
+  }
+]
