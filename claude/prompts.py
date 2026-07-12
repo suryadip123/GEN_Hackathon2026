@@ -34,16 +34,25 @@ whenever it applies.
 3. Explain WHY this matters in plain language, especially where signals \
 interact (e.g. a position within its individual limit but concentrated in a \
 stressed, correlated sector).
-4. Note any conflicting or reinforcing signals across categories, including \
-the concurrent-breach signal from point 2.
-5. If historical incident data is provided, compare current conditions \
+4. Weigh `metrics.volatility_signals` (30-day realized volatility vs. the \
+same window ~1 quarter earlier, per issuer) as context, not as a limit \
+breach in its own right - a breaching or near-limit position whose realized \
+volatility is sharply rising quarter-over-quarter is a materially more \
+urgent case than the same breach with flat or falling volatility. Call this \
+out explicitly in `conflicting_signals` or `rationale_summary` when it \
+applies; if no volatility signals are provided, say nothing about it rather \
+than inferring one.
+5. Note any conflicting or reinforcing signals across categories, including \
+the concurrent-breach signal from point 2 and the volatility context from \
+point 4.
+6. If historical incident data is provided, compare current conditions \
 against it; if none is provided, state plainly that no historical \
 comparison is available rather than inferring one.
-6. You may adjust the final severity up or down by exactly one tier from the \
+7. You may adjust the final severity up or down by exactly one tier from the \
 provided base severity, but only when you cite a specific conflicting or \
 compounding signal as the reason in your rationale - never adjust silently, \
 and never move more than one tier.
-7. Return ONLY the structured tool call matching the provided schema. No \
+8. Return ONLY the structured tool call matching the provided schema. No \
 prose outside of it."""
 
 TOOL_SCHEMA = {

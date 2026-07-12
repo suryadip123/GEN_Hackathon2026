@@ -99,25 +99,36 @@ appends to `audit_log.json`.
 
 ## How to evaluate this against the rubric
 
-`design_document.md` §2 (Rubric-to-Architecture Mapping) is the direct
-pointer: each judged criterion (AI Exposure Analysis & Rationale, API
-Efficiency, Risk Model Quality, Automation & Escalation, Working Demo,
-Docs) is mapped to the design-doc section that addresses it. In short:
+Official weights (Wissen Technology Hackathon 2026 problem statement),
+mapped to where each is addressed - `design_document.md` §2 has the full
+table:
 
-- **AI Exposure Analysis & Rationale** - run the dashboard, click "Run
-  Claude Analysis," and read the rationale/conflicting-signals output
-  against the raw breach table above it (§4 of the dashboard).
-- **API Efficiency** - the token/cost panel (dashboard §6) shows the
-  actual input/output/cache tokens and $ cost for that one call; the
+- **AI Exposure Analysis & Rationale (25%)** - run the dashboard, click
+  "Run Claude Analysis," and read the rationale/conflicting-signals
+  output against the raw breach table above it (dashboard §4). Includes
+  the volatility-context signal (`engine/concentration.py`'s QoQ realized
+  volatility proxy) feeding into Claude's reasoning, not just concentration
+  ratios.
+- **Working Demo (25%)** - `design_document.md` §11 is the exact demo
+  script the dashboard was built to satisfy, section by section. Three
+  sample portfolios are selectable from the dashboard's dropdown (a
+  breach-heavy fund, a clean/diversified fund, and a structural edge
+  case) to show the system isn't a one-scenario show.
+- **Automation & Escalation (20%)** - `escalation/actions.py`, exercised
+  live via dashboard §5; `audit_log.json` (dashboard §7) is the complete,
+  append-only audit trail across every stage.
+- **Risk Model Quality (15%)** - `engine/scoring.py`'s base score and
+  band boundaries are named constants, not magic numbers; compare the
+  base severity banner against Claude's adjusted verdict on the
+  dashboard to see the one-tier, cited-reason adjustment in action.
+  Edge cases (empty portfolio, all-cash, missing sector/geography tags)
+  are handled explicitly, not silently dropped - see the edge-case
+  sample portfolio and `engine/scoring.py`'s structural-suppression logic.
+- **API Efficiency (10%)** - the token/cost panel (dashboard §6) shows
+  the actual input/output/cache tokens and $ cost for that one call; the
   system prompt and limits config are cached (`cache_creation_input_tokens`
   vs `cache_read_input_tokens` in `audit_log.json` shows the cache
-  actually being hit across calls).
-- **Risk Model Quality** - `engine/scoring.py`'s base score and band
-  boundaries are named constants, not magic numbers; compare the base
-  severity banner against Claude's adjusted verdict on the dashboard to
-  see the one-tier, cited-reason adjustment in action.
-- **Automation & Escalation** - `escalation/actions.py`, exercised live
-  via dashboard §5; `audit_log.json` (dashboard §7) is the complete,
-  append-only audit trail across every stage.
-- **Working Demo** - `design_document.md` §11 is the exact demo script
-  the dashboard was built to satisfy, section by section.
+  actually being hit across calls). Worth doing well, but it's the
+  lowest-weighted criterion - don't over-invest here at the expense of
+  the demo or escalation quality.
+- **Docs/README (5%)** - this file plus `design_document.md`.

@@ -1,0 +1,52 @@
+{
+  "portfolio_id": "PORT-2026-0389",
+  "fund_name": "Wissen Conservative Liquidity Fund",
+  "fund_type": "Cash & Cash Equivalents - Capital Preservation",
+  "base_currency": "USD",
+  "nav": 20000000,
+  "as_of": "2026-07-12T09:00:00+00:00",
+  "positions": [
+    {
+      "position_id": "POS-E01",
+      "account_id": "ACC-Liquidity-01",
+      "instrument": "Cash - USD",
+      "ticker": "CASH-USD",
+      "asset_class": "Cash",
+      "quantity": 1,
+      "market_value": 8000000,
+      "currency": "USD",
+      "sector": "Cash",
+      "geography": "United States",
+      "issuer": null,
+      "counterparty": null
+    },
+    {
+      "position_id": "POS-E02",
+      "account_id": "ACC-Liquidity-01",
+      "instrument": "Cash - EUR",
+      "ticker": "CASH-EUR",
+      "asset_class": "Cash",
+      "quantity": 1,
+      "market_value": 7000000,
+      "currency": "EUR",
+      "sector": "Cash",
+      "geography": "Germany",
+      "issuer": null,
+      "counterparty": null
+    },
+    {
+      "position_id": "POS-E03",
+      "account_id": "ACC-Liquidity-02",
+      "instrument": "Cash - INR",
+      "ticker": "CASH-INR",
+      "asset_class": "Cash",
+      "quantity": 1,
+      "market_value": 5000000,
+      "currency": "INR",
+      "sector": "Cash",
+      "geography": "India",
+      "issuer": null,
+      "counterparty": null
+    }
+  ]
+}

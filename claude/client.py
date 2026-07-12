@@ -64,6 +64,15 @@ def _cluster_to_dict(cluster) -> dict:
     return {"holdings": cluster.holdings, "min_corr": cluster.min_corr, "status": cluster.status}
 
 
+def _volatility_to_dict(signal) -> dict:
+    return {
+        "position_id": signal.position_id,
+        "issuer": signal.issuer,
+        "realized_vol_pct": signal.realized_vol_pct,
+        "vol_change_qoq_pct": signal.vol_change_qoq_pct,
+    }
+
+
 def build_user_message(portfolio, report, severity_result, historical_incidents=None) -> dict:
     """Assemble the per-call user message (design_document.md §7).
 
@@ -112,6 +121,7 @@ def build_user_message(portfolio, report, severity_result, historical_incidents=
             "asset_class_concentration": [_entry_to_dict(e) for e in report.asset_class_concentration],
             "hhi": report.hhi,
             "correlation_clusters": [_cluster_to_dict(c) for c in report.correlation_clusters],
+            "volatility_signals": [_volatility_to_dict(v) for v in report.volatility_signals],
         },
         "base_severity": {
             "severity": severity_result.severity,

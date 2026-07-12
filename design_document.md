@@ -14,16 +14,23 @@ Portfolio managers and risk desks manually review thousands of positions across 
 
 ## 2. Rubric-to-Architecture Mapping
 
+Official weights, per the Wissen Technology Hackathon 2026 problem statement:
+
 | Criterion | Weight | Where it's addressed |
 |---|---|---|
 | AI Exposure Analysis & Rationale | 25% | §6 Claude Reasoning Layer, §7 Prompt Design |
-| API Efficiency | 25% | §9 API Efficiency Strategy |
-| Risk Model Quality | 20% | §8 Risk Severity Scoring |
-| Automation & Escalation | 15% | §10 Escalation Engine |
-| Working Demo | — (end-to-end) | §12 Demo Script |
-| Docs/README | 10% | This document + README |
+| Working Demo | 25% | §11 Demo Script |
+| Automation & Escalation | 20% | §10 Escalation Engine |
+| Risk Model Quality | 15% | §8 Risk Severity Scoring |
+| API Efficiency | 10% | §9 API Efficiency Strategy |
+| Docs/README | 5% | This document + README |
 
-*(Note: rubric percentages as given sum to slightly over/under 100% in the original listing — treating as provided, not recalculated.)*
+Working Demo and Automation & Escalation carry more combined weight (45%)
+than API Efficiency and Docs combined (15%) — token/cost discipline and
+prompt caching remain worth doing (they're free correctness/cost wins),
+but they are not the primary lever for the score. Priority for any
+further build time: a robust, varied live demo and solid escalation
+behavior first; API efficiency polish second.
 
 ---
 

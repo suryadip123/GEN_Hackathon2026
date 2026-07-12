@@ -67,7 +67,18 @@ with col_b:
     uploaded = st.file_uploader("...or upload a different portfolio JSON", type="json")
 
 if uploaded is not None:
-    raw = json.load(uploaded)
+    # Streamlit reruns this whole script on every interaction, and the
+    # UploadedFile's read cursor does NOT reset between reruns - without
+    # seek(0), every rerun after the first would read an already-exhausted
+    # stream (empty bytes) and fail to parse. Wrapped in try/except so a
+    # non-JSON or malformed upload shows a clean error instead of crashing
+    # the script.
+    uploaded.seek(0)
+    try:
+        raw = json.load(uploaded)
+    except json.JSONDecodeError as e:
+        st.error(f"Could not parse \"{uploaded.name}\" as JSON: {e}")
+        st.stop()
     source_key = f"upload:{uploaded.name}:{uploaded.size}"
 else:
     raw = load_portfolio(selected_sample)
@@ -80,7 +91,16 @@ if st.session_state.get("source_key") != source_key:
         st.session_state.pop(key, None)
     st.session_state["source_key"] = source_key
 
-portfolio = normalize_portfolio(raw)
+try:
+    portfolio = normalize_portfolio(raw)
+except (KeyError, AttributeError, TypeError) as e:
+    st.error(
+        f"This file doesn't match the expected portfolio schema (missing/wrong-shaped "
+        f"field): {e}. Expected top-level portfolio_id/fund_name/nav/positions, with each "
+        f"position having position_id/account_id/instrument/asset_class/quantity/"
+        f"market_value/currency."
+    )
+    st.stop()
 
 st.write(
     f"**{portfolio.fund_name}** ({portfolio.portfolio_id}) - {portfolio.fund_type}, "
@@ -124,6 +144,12 @@ if report.correlation_clusters:
     st.dataframe(pd.DataFrame([asdict(c) for c in report.correlation_clusters]), width="stretch")
 else:
     st.caption("No correlation clusters flagged (no price history provided, or none exceeded threshold).")
+
+if report.volatility_signals:
+    st.write("Volatility signals (30-day realized vol, QoQ change):")
+    st.dataframe(pd.DataFrame([asdict(v) for v in report.volatility_signals]), width="stretch")
+else:
+    st.caption("No volatility signals available (no price history provided).")
 
 st.subheader("Base severity score (rules-based only, before Claude)")
 _severity_banner("Base severity", severity_result.severity, f"score {severity_result.score}")
@@ -200,19 +226,45 @@ if analysis:
 
     escalation_result = st.session_state.get("escalation_result")
     if escalation_result:
-        st.write(f"Actions taken: {', '.join(escalation_result['actions_taken'])}")
+        st.write(f"**Actions taken:** {', '.join(escalation_result['actions_taken'])}")
+
         if "slack_alert" in escalation_result:
+            slack = escalation_result["slack_alert"]
             st.write("**Simulated Slack alert**")
-            st.json(escalation_result["slack_alert"])
+            st.markdown(
+                f"- Channel: `{slack['channel']}`\n"
+                f"- Urgent: {'Yes' if slack['urgent'] else 'No'}\n"
+                f"- Message: {slack['text']}"
+            )
+
         if "jira_ticket" in escalation_result:
+            jira = escalation_result["jira_ticket"]
             st.write("**Simulated Jira ticket**")
-            st.json(escalation_result["jira_ticket"])
+            st.markdown(
+                f"- Ticket: `{jira['ticket_id']}` ({jira['project']})\n"
+                f"- Priority: {jira['priority']}\n"
+                f"- Summary: {jira['summary']}\n"
+                f"- Description: {jira['description']}"
+            )
+
         if "dashboard_flag" in escalation_result:
+            flag = escalation_result["dashboard_flag"]
             st.write("**Dashboard flag**")
-            st.json(escalation_result["dashboard_flag"])
+            st.markdown(
+                f"- Portfolio: `{flag['portfolio_id']}`\n"
+                f"- Severity: {flag['severity']}\n"
+                f"- Confidence: {flag['confidence_pct']}%\n"
+                f"- Headline: {flag['headline']}"
+            )
+
         if "escalation_memo" in escalation_result:
+            memo = escalation_result["escalation_memo"]
             st.write("**Claude-drafted escalation memo (Haiku)**")
-            st.json(escalation_result["escalation_memo"])
+            st.markdown(
+                f"- Recipient: {memo['recipient']}\n"
+                f"- Subject: {memo['subject']}"
+            )
+            st.write(memo["body"])
 else:
     st.info("Run the Claude analysis first.")
 

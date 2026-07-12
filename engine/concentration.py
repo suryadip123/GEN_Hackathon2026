@@ -2,8 +2,9 @@
 Task 2 - Deterministic Concentration & Risk Metrics Engine
 
 Computes issuer / sector / geography / asset-class concentration, HHI, and
-(where price history is available) correlation clusters — all in code, no
-Claude call. Claude only ever sees the numbers this module produces.
+(where price history is available) correlation clusters and QoQ realized
+volatility signals — all in code, no Claude call. Claude only ever sees
+the numbers this module produces.
 
 Design principles carried over from ingestion/normalize.py:
 - Exposure is computed on absolute market value (shorts count as exposure,
@@ -45,6 +46,14 @@ class CorrelationCluster:
 
 
 @dataclass
+class VolatilitySignal:
+    position_id: str
+    issuer: str
+    realized_vol_pct: float       # annualized realized vol, trailing window
+    vol_change_qoq_pct: float     # % change vs. the same-length window ~1 quarter earlier
+
+
+@dataclass
 class ConcentrationReport:
     portfolio_id: str
     nav: float
@@ -54,6 +63,7 @@ class ConcentrationReport:
     asset_class_concentration: list = field(default_factory=list)
     hhi: float = 0.0
     correlation_clusters: list = field(default_factory=list)
+    volatility_signals: list = field(default_factory=list)
     excluded_from_sector: list = field(default_factory=list)
     excluded_from_geography: list = field(default_factory=list)
     excluded_from_issuer: list = field(default_factory=list)
@@ -134,6 +144,51 @@ def compute_correlation_clusters(positions: list, threshold: float) -> list:
     return clusters
 
 
+VOL_WINDOW_DAYS = 30          # trailing realized-vol window
+VOL_LOOKBACK_GAP_DAYS = 63    # ~1 trading quarter back, for the QoQ comparison window
+TRADING_DAYS_PER_YEAR = 252
+
+
+def compute_volatility_signals(positions: list) -> list:
+    """QoQ realized-volatility proxy per position, where price_history is
+    provided (design_document.md §6/§7 - same optionality policy as
+    compute_correlation_clusters: positions without enough history are
+    excluded from this calc, not flagged as a data-quality issue).
+
+    Compares the trailing VOL_WINDOW_DAYS realized volatility (annualized
+    stdev of daily returns) against the same-length window starting
+    VOL_LOOKBACK_GAP_DAYS earlier, expressed as a % change - this is the
+    "30-day realized volatility up X% quarter-over-quarter" signal Claude
+    reasons over alongside concentration breaches.
+    """
+    min_prices_needed = VOL_WINDOW_DAYS + VOL_LOOKBACK_GAP_DAYS + 1
+    signals = []
+    for p in positions:
+        history = p.get("price_history")
+        if not history or len(history) < min_prices_needed:
+            continue
+
+        returns = pd.Series(history, dtype=float).pct_change().dropna()
+        current_window = returns.iloc[-VOL_WINDOW_DAYS:]
+        prior_window = returns.iloc[-(VOL_WINDOW_DAYS + VOL_LOOKBACK_GAP_DAYS):-VOL_LOOKBACK_GAP_DAYS]
+        if len(current_window) < VOL_WINDOW_DAYS or len(prior_window) < VOL_WINDOW_DAYS:
+            continue
+
+        current_vol = current_window.std() * (TRADING_DAYS_PER_YEAR ** 0.5) * 100
+        prior_vol = prior_window.std() * (TRADING_DAYS_PER_YEAR ** 0.5) * 100
+        if not prior_vol:
+            continue
+
+        change_pct = (current_vol - prior_vol) / prior_vol * 100
+        signals.append(VolatilitySignal(
+            position_id=p["position_id"],
+            issuer=p.get("issuer") or p.get("instrument") or p["position_id"],
+            realized_vol_pct=round(float(current_vol), 2),
+            vol_change_qoq_pct=round(float(change_pct), 1),
+        ))
+    return signals
+
+
 def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport:
     """Compute all §6 concentration metrics for a normalized portfolio.
 
@@ -186,6 +241,7 @@ def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport
 
     hhi = compute_hhi(df, nav)
     clusters = compute_correlation_clusters(positions, limits["correlation_threshold"])
+    volatility_signals = compute_volatility_signals(positions)
 
     return ConcentrationReport(
         portfolio_id=portfolio_id,
@@ -196,6 +252,7 @@ def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport
         asset_class_concentration=asset_class_entries,
         hhi=hhi,
         correlation_clusters=clusters,
+        volatility_signals=volatility_signals,
         excluded_from_sector=excluded_sector,
         excluded_from_geography=excluded_geo,
         excluded_from_issuer=excluded_issuer,
@@ -235,4 +292,12 @@ if __name__ == "__main__":
         print(f"Excluded from issuer calc (cash): {report.excluded_from_issuer}")
 
     print(f"\nCorrelation clusters (threshold {DEFAULT_LIMITS['correlation_threshold']}): "
-          f"{len(report.correlation_clusters)} found (no price_history in sample data)")
+          f"{len(report.correlation_clusters)} found")
+    for c in report.correlation_clusters:
+        print(f"  {c.holdings} min_corr={c.min_corr} [{c.status}]")
+
+    print(f"\nVolatility signals (QoQ, {len(report.volatility_signals)} priced positions):")
+    for v in report.volatility_signals:
+        arrow = "UP" if v.vol_change_qoq_pct > 0 else "down"
+        print(f"  {v.issuer:30s} realized_vol={v.realized_vol_pct:6.2f}%  "
+              f"QoQ {arrow} {v.vol_change_qoq_pct:+.1f}%")

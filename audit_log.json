@@ -326,5 +326,81 @@
     "cost_usd": 0.025745,
     "severity": "HIGH",
     "confidence_pct": 80
+  },
+  {
+    "timestamp": "2026-07-12T05:59:25.655224+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 25.71,
+    "input_tokens": 2548,
+    "output_tokens": 2702,
+    "cache_creation_input_tokens": 1795,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.036603,
+    "severity": "HIGH",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-12T06:18:33.003730+00:00",
+    "portfolio_id": "PORT-2026-0389",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 15.3,
+    "input_tokens": 1018,
+    "output_tokens": 1268,
+    "cache_creation_input_tokens": 1795,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.019203,
+    "severity": "LOW",
+    "confidence_pct": 90
+  },
+  {
+    "timestamp": "2026-07-12T06:18:55.156080+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.12,
+    "input_tokens": 3406,
+    "output_tokens": 1582,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1795,
+    "cost_usd": 0.022991,
+    "severity": "MEDIUM",
+    "confidence_pct": 78
+  },
+  {
+    "timestamp": "2026-07-12T06:26:23.065041+00:00",
+    "portfolio_id": "PORT-2026-0389",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 15.81,
+    "input_tokens": 1018,
+    "output_tokens": 1317,
+    "cache_creation_input_tokens": 1795,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.019693,
+    "severity": "LOW",
+    "confidence_pct": 88
+  },
+  {
+    "timestamp": "2026-07-12T08:05:36.890437+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 26.18,
+    "input_tokens": 2548,
+    "output_tokens": 2691,
+    "cache_creation_input_tokens": 1795,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.036493,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-12T08:05:46.401397+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 82,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
   }
 ]
