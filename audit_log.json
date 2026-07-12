@@ -551,5 +551,18 @@
       "slack_alert",
       "dashboard_flag"
     ]
+  },
+  {
+    "timestamp": "2026-07-12T10:29:06.096402+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 23.57,
+    "input_tokens": 2548,
+    "output_tokens": 2368,
+    "cache_creation_input_tokens": 2256,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.034416,
+    "severity": "HIGH",
+    "confidence_pct": 82
   }
 ]
