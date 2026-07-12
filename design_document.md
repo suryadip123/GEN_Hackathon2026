@@ -218,10 +218,14 @@ Your job:
   "historical_comparison": "none available | <comparison text>",
   "severity": "HIGH",
   "confidence_pct": 91,
-  "rationale_summary": "...",
+  "headline": "One sentence: verdict + urgency.",
+  "key_drivers": ["short bullet 1", "short bullet 2", "short bullet 3"],
+  "compounding_signal": "One paragraph: is this one root cause manifesting across categories, or genuinely independent risks?",
+  "data_gaps": "What data wasn't available, or 'none'.",
   "estimated_review_minutes": 15
 }
 ```
+`rationale_summary` (a single long paragraph) was split into these four right-sized fields so a judge/reviewer can scan the verdict in seconds instead of parsing prose — `headline`/`key_drivers`/`data_gaps` drive the quick-scan UI and the Slack/Jira/dashboard escalation cards, while `compounding_signal` is the system's highest-value insight and gets its own highlighted spot in both.
 
 This structured schema is what feeds §8 and §10 directly — no second Claude call to reformat.
 

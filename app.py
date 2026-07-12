@@ -56,6 +56,13 @@ def _severity_banner(label: str, severity: str, extra: str = "") -> None:
         st.info(text)
 
 
+def _compounding_signal_box(severity: str, text: str) -> None:
+    if severity in ("HIGH", "CRITICAL"):
+        st.warning(text)
+    else:
+        st.info(text)
+
+
 # --- 1. Load / select a portfolio ---
 st.header("1. Load Portfolio")
 
@@ -196,17 +203,23 @@ if analysis:
                 adjustment = "unchanged"
         _severity_banner("Claude final verdict", analysis["severity"], f"{adjustment}, confidence {analysis['confidence_pct']}%")
 
-    st.write("**Rationale:**")
-    st.write(analysis["rationale_summary"])
+    st.subheader(analysis["headline"])
 
-    st.write("**Conflicting / reinforcing signals:**")
-    for signal in analysis["conflicting_signals"]:
-        st.markdown(f"- {signal}")
+    st.write("**Key drivers:**")
+    for driver in analysis["key_drivers"]:
+        st.markdown(f"- {driver}")
 
-    st.write(f"**Historical comparison:** {analysis['historical_comparison']}")
+    _compounding_signal_box(analysis["severity"], f"**Root cause vs. independent risks:** {analysis['compounding_signal']}")
 
-    st.write("**Breaches / warnings (full list Claude reasoned over):**")
-    st.dataframe(pd.DataFrame(analysis["breaches"]), width="stretch")
+    st.caption(f"*Data gaps: {analysis['data_gaps']}*")
+
+    with st.expander("Full breaches table, conflicting signals & historical comparison"):
+        st.write(f"**Historical comparison:** {analysis['historical_comparison']}")
+        st.write("**Conflicting / reinforcing signals:**")
+        for signal in analysis["conflicting_signals"]:
+            st.markdown(f"- {signal}")
+        st.write("**Breaches / warnings (full list Claude reasoned over):**")
+        st.dataframe(pd.DataFrame(analysis["breaches"]), width="stretch")
 else:
     st.info("Click \"Run Claude Analysis\" above to trigger the single Sonnet call.")
 
@@ -221,7 +234,9 @@ if analysis:
             confidence_pct=analysis["confidence_pct"],
             breaches=analysis["breaches"],
             conflicting_signals=analysis["conflicting_signals"],
-            rationale_summary=analysis["rationale_summary"],
+            headline=analysis["headline"],
+            key_drivers=analysis["key_drivers"],
+            compounding_signal=analysis["compounding_signal"],
         )
 
     escalation_result = st.session_state.get("escalation_result")

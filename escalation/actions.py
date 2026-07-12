@@ -94,54 +94,64 @@ class EscalationMemo:
     body: str
 
 
-def _build_slack_alert(portfolio_id, severity, confidence_pct, rationale_summary, urgent) -> SlackAlert:
+def _build_slack_alert(portfolio_id, severity, confidence_pct, headline, urgent) -> SlackAlert:
     tag = f"{severity} - URGENT" if urgent else severity
-    headline = rationale_summary.split(". ")[0] if rationale_summary else "See dashboard for details."
+    headline_text = headline or "See dashboard for details."
     text = (
         f"[{tag}] Portfolio {portfolio_id} concentration risk alert "
-        f"(confidence {confidence_pct}%). {headline}."
+        f"(confidence {confidence_pct}%). {headline_text}"
     )
     return SlackAlert(channel=SLACK_CHANNEL, urgent=urgent, text=text)
 
 
-def _build_jira_ticket(portfolio_id, severity, confidence_pct, breaches, rationale_summary) -> JiraTicket:
+def _build_jira_ticket(portfolio_id, severity, confidence_pct, breaches, headline, key_drivers) -> JiraTicket:
     breaches = breaches or []
+    key_drivers = key_drivers or []
     breach_names = [f"{b.get('category')}:{b.get('name')}" for b in breaches if b.get("status") == "BREACH"]
     ticket_id = f"{JIRA_PROJECT}-{portfolio_id}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
     priority = "Highest" if severity == "CRITICAL" else "High"
     summary = f"[{severity}] Concentration risk review - {portfolio_id}"
+    drivers_block = "\n".join(f"- {d}" for d in key_drivers) or "- (none provided)"
     description = (
-        f"{len(breach_names)} BREACH-status metric(s): {', '.join(breach_names) or 'none'}.\n\n"
-        f"Confidence: {confidence_pct}%.\n\n"
-        f"{rationale_summary or 'See audit trail for full analysis.'}"
+        f"{headline or 'See audit trail for full analysis.'}\n\n"
+        f"Key drivers:\n{drivers_block}\n\n"
+        f"{len(breach_names)} BREACH-status metric(s): {', '.join(breach_names) or 'none'}.\n"
+        f"Confidence: {confidence_pct}%."
     )
     return JiraTicket(ticket_id=ticket_id, project=JIRA_PROJECT, priority=priority,
                        summary=summary, description=description)
 
 
-def _build_dashboard_flag(portfolio_id, severity, confidence_pct, rationale_summary) -> DashboardFlag:
-    headline = rationale_summary.split(". ")[0] if rationale_summary else f"{severity} severity"
+def _build_dashboard_flag(portfolio_id, severity, confidence_pct, headline) -> DashboardFlag:
     return DashboardFlag(portfolio_id=portfolio_id, severity=severity,
-                          confidence_pct=confidence_pct, headline=headline)
+                          confidence_pct=confidence_pct, headline=headline or f"{severity} severity")
 
 
 def _draft_escalation_memo(portfolio_id, severity, confidence_pct, breaches,
-                            conflicting_signals, rationale_summary, client=None) -> EscalationMemo:
+                            conflicting_signals, headline, key_drivers, compounding_signal, client=None) -> EscalationMemo:
     """Cheap Haiku templating call - drafts memo prose from the analysis
     Claude Sonnet already produced. Logs its own audit trail entry, same as
     every other Claude call in this project.
+
+    Unlike the Slack/Jira/dashboard cards (which need the RIGHT-SIZED field
+    for a quick scan), a memo is expected to be longer-form - so it draws on
+    `compounding_signal` and `key_drivers` as source material rather than
+    just the one-sentence `headline`.
     """
     client = client or anthropic.Anthropic()
     breaches = breaches or []
     conflicting_signals = conflicting_signals or []
+    key_drivers = key_drivers or []
 
     user_content = (
         f"Portfolio: {portfolio_id}\n"
         f"Severity: {severity}\n"
         f"Confidence: {confidence_pct}%\n"
+        f"Headline: {headline or 'Not provided.'}\n"
         f"Breach count: {len(breaches)}\n"
+        f"Key drivers:\n- " + "\n- ".join(key_drivers) + "\n\n"
         f"Conflicting/compounding signals:\n- " + "\n- ".join(conflicting_signals) + "\n\n"
-        f"Rationale:\n{rationale_summary or 'Not provided.'}"
+        f"Root cause vs. independent risks analysis:\n{compounding_signal or 'Not provided.'}"
     )
 
     try:
@@ -182,14 +192,19 @@ def _draft_escalation_memo(portfolio_id, severity, confidence_pct, breaches,
     return EscalationMemo(recipient="Risk Committee", subject=f"[{severity}] {portfolio_id} concentration risk", body=body)
 
 
-def escalate(portfolio_id, severity, confidence_pct, breaches=None,
-             conflicting_signals=None, rationale_summary=None, haiku_client=None) -> dict:
+def escalate(portfolio_id, severity, confidence_pct, breaches=None, conflicting_signals=None,
+             headline=None, key_drivers=None, compounding_signal=None, haiku_client=None) -> dict:
     """Execute the severity -> action mapping from design_document.md §10.
 
     `severity` must be Claude's final verdict (post one-tier adjustment),
     not the raw engine.scoring base score. Simulates Slack/Jira as printed
     structured objects, drafts a Haiku escalation memo for CRITICAL only,
     and writes one audit trail entry recording every action taken.
+
+    Each downstream surface gets the RIGHT-SIZED field, not one long blob:
+    `headline` (one sentence) drives Slack/Jira/dashboard, `key_drivers`
+    adds bullets to the Jira description, and `compounding_signal` (plus
+    `key_drivers`) is source material for the longer-form Haiku memo.
     """
     if severity not in SEVERITY_ACTIONS:
         raise ValueError(f"Unknown severity: {severity!r} - expected one of {list(SEVERITY_ACTIONS)}")
@@ -207,25 +222,25 @@ def escalate(portfolio_id, severity, confidence_pct, breaches=None,
         })
         return result
 
-    slack = _build_slack_alert(portfolio_id, severity, confidence_pct, rationale_summary, urgent=(severity == "CRITICAL"))
+    slack = _build_slack_alert(portfolio_id, severity, confidence_pct, headline, urgent=(severity == "CRITICAL"))
     result["slack_alert"] = asdict(slack)
     result["actions_taken"].append("slack_alert")
     print(f"[SIMULATED SLACK -> {slack.channel}] {slack.text}")
 
     if severity in ("HIGH", "CRITICAL"):
-        ticket = _build_jira_ticket(portfolio_id, severity, confidence_pct, breaches, rationale_summary)
+        ticket = _build_jira_ticket(portfolio_id, severity, confidence_pct, breaches, headline, key_drivers)
         result["jira_ticket"] = asdict(ticket)
         result["actions_taken"].append("jira_ticket")
         print(f"[SIMULATED JIRA] {ticket.ticket_id} ({ticket.priority}): {ticket.summary}")
 
-    flag = _build_dashboard_flag(portfolio_id, severity, confidence_pct, rationale_summary)
+    flag = _build_dashboard_flag(portfolio_id, severity, confidence_pct, headline)
     result["dashboard_flag"] = asdict(flag)
     result["actions_taken"].append("dashboard_flag")
     print(f"[DASHBOARD FLAG] {flag.severity} - {flag.headline}")
 
     if severity == "CRITICAL":
-        memo = _draft_escalation_memo(portfolio_id, severity, confidence_pct, breaches,
-                                       conflicting_signals, rationale_summary, client=haiku_client)
+        memo = _draft_escalation_memo(portfolio_id, severity, confidence_pct, breaches, conflicting_signals,
+                                       headline, key_drivers, compounding_signal, client=haiku_client)
         result["escalation_memo"] = asdict(memo)
         result["actions_taken"].append("escalation_memo")
         print(f"[ESCALATION MEMO -> {memo.recipient}] {memo.subject}\n{memo.body}")
@@ -277,7 +292,9 @@ if __name__ == "__main__":
         confidence_pct=analysis["confidence_pct"],
         breaches=analysis["breaches"],
         conflicting_signals=analysis["conflicting_signals"],
-        rationale_summary=analysis["rationale_summary"],
+        headline=analysis["headline"],
+        key_drivers=analysis["key_drivers"],
+        compounding_signal=analysis["compounding_signal"],
     )
 
     print("\n=== Escalation result ===")
@@ -290,7 +307,9 @@ if __name__ == "__main__":
         confidence_pct=95,
         breaches=analysis["breaches"],
         conflicting_signals=analysis["conflicting_signals"],
-        rationale_summary=analysis["rationale_summary"],
+        headline=analysis["headline"],
+        key_drivers=analysis["key_drivers"],
+        compounding_signal=analysis["compounding_signal"],
     )
     print(json.dumps(critical_result, indent=2))
 

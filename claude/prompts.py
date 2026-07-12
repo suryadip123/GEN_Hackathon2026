@@ -39,9 +39,9 @@ same window ~1 quarter earlier, per issuer) as context, not as a limit \
 breach in its own right - a breaching or near-limit position whose realized \
 volatility is sharply rising quarter-over-quarter is a materially more \
 urgent case than the same breach with flat or falling volatility. Call this \
-out explicitly in `conflicting_signals` or `rationale_summary` when it \
-applies; if no volatility signals are provided, say nothing about it rather \
-than inferring one.
+out explicitly in `conflicting_signals` or `key_drivers` when it applies; if \
+no volatility signals are provided, say nothing about it rather than \
+inferring one.
 5. Note any conflicting or reinforcing signals across categories, including \
 the concurrent-breach signal from point 2 and the volatility context from \
 point 4.
@@ -50,9 +50,18 @@ against it; if none is provided, state plainly that no historical \
 comparison is available rather than inferring one.
 7. You may adjust the final severity up or down by exactly one tier from the \
 provided base severity, but only when you cite a specific conflicting or \
-compounding signal as the reason in your rationale - never adjust silently, \
-and never move more than one tier.
-8. Return ONLY the structured tool call matching the provided schema. No \
+compounding signal as the reason in `compounding_signal` or `key_drivers` - \
+never adjust silently, and never move more than one tier.
+8. Write for a reader who has seconds, not minutes, to grasp the verdict: \
+`headline` is exactly one sentence stating the verdict and its urgency; \
+`key_drivers` is 3-5 short bullet points (fragments, not full paragraphs) \
+naming the specific factors that drove the severity call; `compounding_signal` \
+is always populated with the point-2 judgment - one root cause manifesting \
+across categories, or genuinely independent risks - even when the answer is \
+that the risks look independent; `data_gaps` is one line naming what wasn't \
+available (e.g. volatility, historical incidents) or "none" if nothing is \
+missing.
+9. Return ONLY the structured tool call matching the provided schema. No \
 prose outside of it."""
 
 TOOL_SCHEMA = {
@@ -105,7 +114,34 @@ TOOL_SCHEMA = {
                 "type": "integer",
                 "description": "Your confidence in this analysis, 0-100.",
             },
-            "rationale_summary": {"type": "string"},
+            "headline": {
+                "type": "string",
+                "description": "One sentence: the verdict and its urgency.",
+            },
+            "key_drivers": {
+                "type": "array",
+                "description": (
+                    "3-5 short bullet points (fragments, not full sentences) naming the "
+                    "specific factors driving the severity verdict."
+                ),
+                "items": {"type": "string"},
+            },
+            "compounding_signal": {
+                "type": "string",
+                "description": (
+                    "One paragraph judging whether this is one root cause manifesting "
+                    "across multiple categories, or genuinely independent risks. The "
+                    "highest-value insight in the analysis - always populate it, even "
+                    "when the risks look independent."
+                ),
+            },
+            "data_gaps": {
+                "type": "string",
+                "description": (
+                    "One line naming what data wasn't available (e.g. volatility, "
+                    "historical incidents), or 'none' if nothing is missing."
+                ),
+            },
             "estimated_review_minutes": {
                 "type": "integer",
                 "description": "Estimated minutes for a human reviewer to check this analysis, >= 0.",
@@ -117,7 +153,10 @@ TOOL_SCHEMA = {
             "historical_comparison",
             "severity",
             "confidence_pct",
-            "rationale_summary",
+            "headline",
+            "key_drivers",
+            "compounding_signal",
+            "data_gaps",
             "estimated_review_minutes",
         ],
         "additionalProperties": False,

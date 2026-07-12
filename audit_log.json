@@ -402,5 +402,154 @@
       "jira_ticket",
       "dashboard_flag"
     ]
+  },
+  {
+    "timestamp": "2026-07-12T08:45:31.766851+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 31.77,
+    "input_tokens": 2548,
+    "output_tokens": 2828,
+    "cache_creation_input_tokens": 1795,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.037864,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-12T08:46:47.218026+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 20.21,
+    "input_tokens": 2775,
+    "output_tokens": 1986,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1795,
+    "cost_usd": 0.025769,
+    "severity": "MEDIUM",
+    "confidence_pct": 62
+  },
+  {
+    "timestamp": "2026-07-12T09:03:45.029082+00:00",
+    "portfolio_id": "PORT-2026-0389",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 34.59,
+    "input_tokens": 1018,
+    "output_tokens": 1041,
+    "cache_creation_input_tokens": 2256,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.018086,
+    "severity": "LOW",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-12T09:04:14.793322+00:00",
+    "portfolio_id": "PORT-2026-0389",
+    "severity": "LOW",
+    "confidence_pct": 85,
+    "actions_taken": [
+      "audit_log"
+    ]
+  },
+  {
+    "timestamp": "2026-07-12T09:07:22.333458+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 21.35,
+    "input_tokens": 2548,
+    "output_tokens": 2215,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 2256,
+    "cost_usd": 0.027697,
+    "severity": "HIGH",
+    "confidence_pct": 80
+  },
+  {
+    "timestamp": "2026-07-12T09:16:22.357267+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "cost_usd": 0.00035,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-12T09:16:22.359654+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "severity": "CRITICAL",
+    "confidence_pct": 92,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-12T09:18:08.015725+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 22.02,
+    "input_tokens": 2037,
+    "output_tokens": 2121,
+    "cache_creation_input_tokens": 2256,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.030924,
+    "severity": "CRITICAL",
+    "confidence_pct": 90
+  },
+  {
+    "timestamp": "2026-07-12T09:18:29.823089+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 950,
+    "output_tokens": 532,
+    "cost_usd": 0.00361,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-12T09:18:29.826384+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "severity": "CRITICAL",
+    "confidence_pct": 90,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-12T09:20:14.983752+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 17.2,
+    "input_tokens": 2775,
+    "output_tokens": 1562,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 2256,
+    "cost_usd": 0.021621,
+    "severity": "MEDIUM",
+    "confidence_pct": 55
+  },
+  {
+    "timestamp": "2026-07-12T09:20:28.686573+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "severity": "MEDIUM",
+    "confidence_pct": 55,
+    "actions_taken": [
+      "slack_alert",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-12T09:21:01.934044+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "severity": "MEDIUM",
+    "confidence_pct": 55,
+    "actions_taken": [
+      "slack_alert",
+      "dashboard_flag"
+    ]
   }
 ]

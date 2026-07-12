@@ -106,7 +106,8 @@ Conventions to follow (don't deviate without a reason):
    sev = compute_severity(report)
    analysis = analyze_portfolio(p, report, sev, DEFAULT_LIMITS)
    print(analysis['severity'], analysis['confidence_pct'])
-   print(analysis['rationale_summary'])
+   print(analysis['headline'])
+   print(analysis['compounding_signal'])
    "
    ```
    Requires `ANTHROPIC_API_KEY` in the environment.

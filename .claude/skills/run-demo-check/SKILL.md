@@ -108,7 +108,8 @@ else:
         portfolio_id=report.portfolio_id, severity=analysis['severity'],
         confidence_pct=analysis['confidence_pct'], breaches=analysis['breaches'],
         conflicting_signals=analysis['conflicting_signals'],
-        rationale_summary=analysis['rationale_summary'],
+        headline=analysis['headline'], key_drivers=analysis['key_drivers'],
+        compounding_signal=analysis['compounding_signal'],
     )
     print('Escalation actions taken:', result['actions_taken'])
 "
