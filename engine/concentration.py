@@ -22,6 +22,11 @@ DEFAULT_LIMITS = {
     "sector_limit_pct": 25.0,
     "geography_limit_pct": 70.0,
     "asset_class_limit_pct": 60.0,
+    # Currency exposure is a distinct risk from geography (e.g. a US-listed
+    # ADR can be EUR-denominated) - grouped on the position's native
+    # `currency` tag, not on geography. 60% is a starting point, not a
+    # regulatory figure - configurable per fund mandate like the other limits.
+    "currency_limit_pct": 60.0,
     "correlation_threshold": 0.85,
     "warning_buffer_pct": 3.0,
 }
@@ -61,6 +66,7 @@ class ConcentrationReport:
     sector_concentration: list = field(default_factory=list)
     geography_concentration: list = field(default_factory=list)
     asset_class_concentration: list = field(default_factory=list)
+    currency_concentration: list = field(default_factory=list)
     hhi: float = 0.0
     correlation_clusters: list = field(default_factory=list)
     volatility_signals: list = field(default_factory=list)
@@ -239,6 +245,12 @@ def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport
         df, "asset_class", nav, limits["asset_class_limit_pct"], limits["warning_buffer_pct"],
     )
 
+    # `currency` is a required position field (validated at ingestion), so
+    # unlike sector/geography there's no missing-tag exclusion case here.
+    currency_entries, _ = _group_and_compute(
+        df, "currency", nav, limits["currency_limit_pct"], limits["warning_buffer_pct"],
+    )
+
     hhi = compute_hhi(df, nav)
     clusters = compute_correlation_clusters(positions, limits["correlation_threshold"])
     volatility_signals = compute_volatility_signals(positions)
@@ -250,6 +262,7 @@ def compute_concentration(portfolio, limits: dict = None) -> ConcentrationReport
         sector_concentration=sector_entries,
         geography_concentration=geography_entries,
         asset_class_concentration=asset_class_entries,
+        currency_concentration=currency_entries,
         hhi=hhi,
         correlation_clusters=clusters,
         volatility_signals=volatility_signals,
@@ -283,6 +296,7 @@ if __name__ == "__main__":
     _print_group("Sector concentration", report.sector_concentration)
     _print_group("Geography concentration", report.geography_concentration)
     _print_group("Asset class concentration", report.asset_class_concentration)
+    _print_group("Currency concentration", report.currency_concentration)
 
     if report.excluded_from_sector:
         print(f"\nExcluded from sector calc (missing tag): {report.excluded_from_sector}")

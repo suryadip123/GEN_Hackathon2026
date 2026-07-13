@@ -30,6 +30,7 @@ import anthropic
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from claude.client import append_audit_entry
+from escalation.email import DEFAULT_ESCALATION_EMAIL_TO, EMAIL_ELIGIBLE_SEVERITIES, compose_escalation_email
 
 # Severity -> ordered list of actions, per design_document.md §10 table.
 SEVERITY_ACTIONS = {
@@ -193,7 +194,8 @@ def _draft_escalation_memo(portfolio_id, severity, confidence_pct, breaches,
 
 
 def escalate(portfolio_id, severity, confidence_pct, breaches=None, conflicting_signals=None,
-             headline=None, key_drivers=None, compounding_signal=None, haiku_client=None) -> dict:
+             headline=None, key_drivers=None, compounding_signal=None,
+             portfolio=None, report=None, haiku_client=None) -> dict:
     """Execute the severity -> action mapping from design_document.md §10.
 
     `severity` must be Claude's final verdict (post one-tier adjustment),
@@ -205,11 +207,21 @@ def escalate(portfolio_id, severity, confidence_pct, breaches=None, conflicting_
     `headline` (one sentence) drives Slack/Jira/dashboard, `key_drivers`
     adds bullets to the Jira description, and `compounding_signal` (plus
     `key_drivers`) is source material for the longer-form Haiku memo.
+
+    Email is a REAL channel (escalation/email.py), unlike simulated
+    Slack/Jira - `escalate()` only COMPOSES the email (result["escalation_email_draft"])
+    when eligible (HIGH/CRITICAL) and `portfolio`/`report` are supplied;
+    it never sends. Sending is a separate, explicit call
+    (escalation.email.send_email) triggered only by the caller (e.g. a
+    dashboard button), never automatically from here.
     """
     if severity not in SEVERITY_ACTIONS:
         raise ValueError(f"Unknown severity: {severity!r} - expected one of {list(SEVERITY_ACTIONS)}")
 
-    result = {"portfolio_id": portfolio_id, "severity": severity, "actions_taken": []}
+    result = {
+        "portfolio_id": portfolio_id, "severity": severity, "actions_taken": [],
+        "email_eligible": severity in EMAIL_ELIGIBLE_SEVERITIES,
+    }
 
     if severity == "LOW":
         result["actions_taken"].append("audit_log")
@@ -227,11 +239,26 @@ def escalate(portfolio_id, severity, confidence_pct, breaches=None, conflicting_
     result["actions_taken"].append("slack_alert")
     print(f"[SIMULATED SLACK -> {slack.channel}] {slack.text}")
 
+    ticket = None
     if severity in ("HIGH", "CRITICAL"):
         ticket = _build_jira_ticket(portfolio_id, severity, confidence_pct, breaches, headline, key_drivers)
         result["jira_ticket"] = asdict(ticket)
         result["actions_taken"].append("jira_ticket")
         print(f"[SIMULATED JIRA] {ticket.ticket_id} ({ticket.priority}): {ticket.summary}")
+
+    if result["email_eligible"] and portfolio is not None and report is not None:
+        composed_email = compose_escalation_email(
+            portfolio_id=portfolio_id,
+            fund_name=getattr(portfolio, "fund_name", None) or portfolio.get("fund_name", "UNKNOWN"),
+            nav=report.nav,
+            base_currency=getattr(portfolio, "base_currency", None) or portfolio.get("base_currency", "UNKNOWN"),
+            severity=severity, confidence_pct=confidence_pct, report=report, headline=headline,
+            jira_ticket_id=ticket.ticket_id if ticket else None, slack_channel=slack.channel,
+            recipient=DEFAULT_ESCALATION_EMAIL_TO,
+        )
+        result["escalation_email_draft"] = asdict(composed_email)
+        result["actions_taken"].append("escalation_email_drafted")
+        print(f"[EMAIL DRAFTED, not sent -> {composed_email.recipient}] {composed_email.subject}")
 
     flag = _build_dashboard_flag(portfolio_id, severity, confidence_pct, headline)
     result["dashboard_flag"] = asdict(flag)
@@ -295,6 +322,7 @@ if __name__ == "__main__":
         headline=analysis["headline"],
         key_drivers=analysis["key_drivers"],
         compounding_signal=analysis["compounding_signal"],
+        portfolio=portfolio, report=report,
     )
 
     print("\n=== Escalation result ===")
@@ -310,6 +338,7 @@ if __name__ == "__main__":
         headline=analysis["headline"],
         key_drivers=analysis["key_drivers"],
         compounding_signal=analysis["compounding_signal"],
+        portfolio=portfolio, report=report,
     )
     print(json.dumps(critical_result, indent=2))
 

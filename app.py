@@ -15,6 +15,7 @@ import glob
 import json
 import os
 from dataclasses import asdict
+from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
@@ -23,7 +24,9 @@ from ingestion.normalize import load_portfolio, normalize_portfolio
 from engine.concentration import compute_concentration, DEFAULT_LIMITS
 from engine.scoring import compute_severity
 from claude.client import AUDIT_LOG_PATH, ClaudeAnalysisError, analyze_portfolio
+from claude.verify import ClaudeVerificationError, verify_portfolio
 from escalation.actions import escalate
+from escalation.email import DEFAULT_ESCALATION_EMAIL_TO, EmailEscalationError, send_email
 
 SAMPLE_DIR = "data/sample_portfolios"
 SEVERITY_ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -94,7 +97,8 @@ else:
 if st.session_state.get("source_key") != source_key:
     # Portfolio changed - drop downstream state that belonged to the old one,
     # so a stale Claude/escalation result never gets shown for a new file.
-    for key in ("analysis", "analyzed_source_key", "claude_audit_entry", "escalation_result"):
+    for key in ("analysis", "analyzed_source_key", "claude_audit_entry", "escalation_result",
+                "verification_result", "email_send_result"):
         st.session_state.pop(key, None)
     st.session_state["source_key"] = source_key
 
@@ -117,6 +121,19 @@ st.write(
 # --- 2. Ingestion output ---
 st.header("2. Ingestion Output")
 st.write(f"Positions loaded: {len(portfolio.positions)}")
+
+fx_source_labels = {
+    "live": "fetched live",
+    "cache_fresh": "reused from cache (fetched recently, still fresh)",
+    "cache_fallback": "live fetch failed - fell back to cache",
+    "unavailable": "no live or cached rates available - market values left unconverted",
+    "n/a": "not applicable",
+}
+fx_label = fx_source_labels.get(portfolio.fx_source, portfolio.fx_source)
+st.caption(f"FX rates (base {portfolio.base_currency}): {fx_label}" + (
+    f", as of {portfolio.fx_fetched_at}" if portfolio.fx_fetched_at else ""
+))
+
 st.subheader("Data quality flags")
 if portfolio.data_quality_flags:
     st.dataframe(_flags_df(portfolio.data_quality_flags), width="stretch")
@@ -130,7 +147,7 @@ severity_result = compute_severity(report)
 
 st.metric("HHI (diversification index)", report.hhi)
 
-tab1, tab2, tab3, tab4 = st.tabs(["Issuer", "Sector", "Geography", "Asset Class"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Issuer", "Sector", "Geography", "Asset Class", "Currency"])
 with tab1:
     st.dataframe(_entries_df(report.issuer_concentration), width="stretch")
     if report.excluded_from_issuer:
@@ -145,6 +162,9 @@ with tab3:
         st.caption(f"Excluded from geography calc (missing tag): {report.excluded_from_geography}")
 with tab4:
     st.dataframe(_entries_df(report.asset_class_concentration), width="stretch")
+with tab5:
+    st.dataframe(_entries_df(report.currency_concentration), width="stretch")
+    st.caption("Grouped by each position's native currency (converted market value) - a distinct risk from geography.")
 
 if report.correlation_clusters:
     st.write("Correlation clusters (>0.85):")
@@ -164,8 +184,70 @@ if severity_result.structural_notes:
     for note in severity_result.structural_notes:
         st.caption(f"Structural note: {note}")
 
-# --- 4. Claude analysis - the ONE Sonnet call ---
-st.header("4. Claude Risk Analysis (Sonnet - one call)")
+# --- 4. Claude Verification - independent, user-triggered cross-check ---
+# This does NOT run automatically - engine/concentration.py stays the system
+# of record; this is an on-demand audit, never a dependency of severity
+# scoring or the main analysis below.
+st.header("4. Claude Verification (independent cross-check)")
+st.caption(
+    "On-demand audit only - re-derives 3 headline figures from RAW position data "
+    "and compares them to the engine's output above. The engine remains the system "
+    "of record; this never feeds severity scoring."
+)
+
+if st.button("Run Independent Verification"):
+    with st.spinner("Calling Claude Sonnet for independent verification..."):
+        try:
+            verification = verify_portfolio(portfolio, report, DEFAULT_LIMITS)
+            st.session_state["verification_result"] = verification
+            st.session_state["verified_source_key"] = source_key
+        except ClaudeVerificationError as e:
+            st.error(f"Verification call failed (analysis above is unaffected): {e}")
+
+verification = st.session_state.get("verification_result")
+if verification and st.session_state.get("verified_source_key") == source_key:
+    if verification["overall_verdict"] == "ALL_MATCHED":
+        st.success("ALL_MATCHED - Claude's independent recomputation agrees with the engine.")
+    else:
+        st.warning(
+            "DISCREPANCY_FOUND - at least one figure didn't match within tolerance. "
+            "The engine (engine/concentration.py) remains the system of record; "
+            "investigate before trusting Claude's recomputation over it."
+        )
+
+    figure_labels = {"top_sector_pct": "Top sector %", "top_issuer_pct": "Top issuer %", "hhi": "HHI"}
+    verify_rows = [
+        {
+            "Figure": figure_labels.get(f["figure"], f["figure"]),
+            "Engine value": f["engine_value"],
+            "Claude's recomputed value": f["claude_value"],
+            "Status": f["status"],
+        }
+        for f in verification["figures"]
+    ]
+    st.dataframe(pd.DataFrame(verify_rows), width="stretch")
+
+    for f in verification["figures"]:
+        if f["status"] == "MISMATCH":
+            st.warning(
+                f"**{figure_labels.get(f['figure'], f['figure'])}** - engine: {f['engine_value']}  "
+                f"vs. Claude: {f['claude_value']}  (rule applied: {f['rule_applied']})"
+            )
+
+    with st.expander("Rules Claude stated it applied, and per-figure notes"):
+        for f in verification["figures"]:
+            st.markdown(f"- **{figure_labels.get(f['figure'], f['figure'])}**: {f['rule_applied']} — {f['note']}")
+
+    audit = verification["_audit"]
+    vc1, vc2, vc3 = st.columns(3)
+    vc1.metric("Input tokens", audit["input_tokens"])
+    vc2.metric("Output tokens", audit["output_tokens"])
+    vc3.metric("Cost (USD)", f"${audit['cost_usd']:.6f}")
+else:
+    st.info("Click \"Run Independent Verification\" to trigger the one-off Sonnet audit call.")
+
+# --- 5. Claude analysis - the ONE Sonnet call ---
+st.header("5. Claude Risk Analysis (Sonnet - one call)")
 
 if st.button("Run Claude Analysis"):
     already_analyzed = (
@@ -223,8 +305,8 @@ if analysis:
 else:
     st.info("Click \"Run Claude Analysis\" above to trigger the single Sonnet call.")
 
-# --- 5. Escalation actions ---
-st.header("5. Escalation Actions (design_document.md §10)")
+# --- 6. Escalation actions ---
+st.header("6. Escalation Actions (design_document.md §10)")
 
 if analysis:
     if st.button("Trigger Escalation"):
@@ -237,7 +319,9 @@ if analysis:
             headline=analysis["headline"],
             key_drivers=analysis["key_drivers"],
             compounding_signal=analysis["compounding_signal"],
+            portfolio=portfolio, report=report,
         )
+        st.session_state.pop("email_send_result", None)
 
     escalation_result = st.session_state.get("escalation_result")
     if escalation_result:
@@ -280,11 +364,57 @@ if analysis:
                 f"- Subject: {memo['subject']}"
             )
             st.write(memo["body"])
+
+        st.write("**Real email escalation**")
+        if not escalation_result.get("email_eligible"):
+            st.info(
+                f"Email is not an eligible action at {escalation_result['severity']} severity "
+                "(HIGH/CRITICAL only) - Slack/Jira/dashboard above still apply per the severity table."
+            )
+        elif "escalation_email_draft" not in escalation_result:
+            st.warning("Email was eligible but couldn't be composed (missing portfolio/report context).")
+        else:
+            draft = escalation_result["escalation_email_draft"]
+            recipient_input = st.text_input(
+                "Recipient", value=draft["recipient"] or DEFAULT_ESCALATION_EMAIL_TO,
+                key=f"email_recipient_{source_key}",
+            )
+            with st.expander("Preview composed email (not sent)", expanded=True):
+                st.markdown(f"**Subject:** {draft['subject']}")
+                st.text(draft["body"])
+
+            if st.button("Send Escalation Email"):
+                try:
+                    send_email(
+                        recipient=recipient_input, subject=draft["subject"], body=draft["body"],
+                        portfolio_id=report.portfolio_id, severity=escalation_result["severity"],
+                    )
+                    st.session_state["email_send_result"] = {
+                        "status": "sent", "recipient": recipient_input,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                except EmailEscalationError as e:
+                    st.session_state["email_send_result"] = {
+                        "status": "failed", "recipient": recipient_input, "error": str(e),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+
+            email_send_result = st.session_state.get("email_send_result")
+            if email_send_result:
+                if email_send_result["status"] == "sent":
+                    st.success(
+                        f"Sent to {email_send_result['recipient']} at {email_send_result['timestamp']}."
+                    )
+                else:
+                    st.error(
+                        f"Send failed to {email_send_result['recipient']} at "
+                        f"{email_send_result['timestamp']}: {email_send_result['error']}"
+                    )
 else:
     st.info("Run the Claude analysis first.")
 
-# --- 6. Token / cost for this run ---
-st.header("6. API Efficiency - Token & Cost for This Run")
+# --- 7. Token / cost for this run ---
+st.header("7. API Efficiency - Token & Cost for This Run")
 
 claude_audit_entry = st.session_state.get("claude_audit_entry")
 if claude_audit_entry:
@@ -297,8 +427,8 @@ if claude_audit_entry:
 else:
     st.info("Run the Claude analysis first.")
 
-# --- 7. Full audit trail ---
-st.header("7. Full Audit Trail")
+# --- 8. Full audit trail ---
+st.header("8. Full Audit Trail")
 
 if os.path.exists(AUDIT_LOG_PATH):
     with open(AUDIT_LOG_PATH, "r") as f:

@@ -20,8 +20,10 @@ provided - treat them as ground truth.
 
 Your job:
 1. Identify which metrics breach or approach their limits, using the full \
-lists in `metrics` (every issuer, sector, geography, and asset-class entry) \
-- not just the single worst entry in each category.
+lists in `metrics` (every issuer, sector, geography, asset-class, and \
+currency entry) - not just the single worst entry in each category. \
+Currency is a distinct risk from geography (e.g. a US-listed ADR can be \
+EUR-denominated) - never conflate the two.
 2. Count and weigh how many categories are breaching simultaneously, and how \
 many distinct entries breach within each category. The base severity score \
 you are given is built only from the single worst breach magnitude per \
@@ -83,7 +85,7 @@ TOOL_SCHEMA = {
                     "properties": {
                         "category": {
                             "type": "string",
-                            "enum": ["issuer", "sector", "geography", "asset_class", "correlation"],
+                            "enum": ["issuer", "sector", "geography", "asset_class", "correlation", "currency"],
                         },
                         "name": {"type": "string"},
                         "status": {"type": "string", "enum": ["WARNING", "BREACH"]},

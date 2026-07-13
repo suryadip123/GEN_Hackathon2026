@@ -564,5 +564,81 @@
     "cost_usd": 0.034416,
     "severity": "HIGH",
     "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-12T11:43:09.610485+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 23.52,
+    "input_tokens": 2548,
+    "output_tokens": 2355,
+    "cache_creation_input_tokens": 2256,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.034286,
+    "severity": "HIGH",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-12T11:43:43.119112+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "severity": "HIGH",
+    "confidence_pct": 82,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "dashboard_flag"
+    ]
+  },
+  {
+    "timestamp": "2026-07-12T11:48:43.545385+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "elapsed_s": 19.93,
+    "input_tokens": 1113,
+    "output_tokens": 1535,
+    "cache_creation_input_tokens": 2256,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.023216,
+    "severity": "CRITICAL",
+    "confidence_pct": 85
+  },
+  {
+    "timestamp": "2026-07-13T17:13:08.701185+00:00",
+    "portfolio_id": "PORT-2026-0389",
+    "model": "claude-sonnet-5",
+    "error_type": "api_error_401",
+    "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CczRxJfdiAiD6wCCfD7AP'}"
+  },
+  {
+    "timestamp": "2026-07-13T17:13:28.245945+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "error_type": "api_error_401",
+    "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CczRyk87EL2GicfqkQNMr'}"
+  },
+  {
+    "timestamp": "2026-07-13T17:21:44.952161+00:00",
+    "portfolio_id": "PORT-2026-0442",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "error_type": "missing_tool_response",
+    "error": "No portfolio_verification tool_use block (stop_reason=tool_use)"
+  },
+  {
+    "timestamp": "2026-07-13T17:27:47.034071+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "error_type": "api_error_401",
+    "error": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CczT52x9ASkbjs5fmjois'}"
+  },
+  {
+    "timestamp": "2026-07-13T17:52:03.335612+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipient": "suryadip.kumar@wissen.com",
+    "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
+    "severity": "CRITICAL",
+    "outcome": "sent"
   }
 ]

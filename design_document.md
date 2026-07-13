@@ -147,9 +147,12 @@ Computed in code, per portfolio:
 - **Sector concentration**: grouped `market_value / NAV` by sector
 - **Geography concentration**: grouped `market_value / NAV` by geography
 - **Asset class concentration**: grouped `market_value / NAV` by asset class
+- **Currency concentration**: grouped `market_value / NAV` by each position's native `currency` — a distinct risk from geography (e.g. a US-listed ADR can be EUR-denominated), so it groups on the currency tag, not the geography tag
 - **Herfindahl-Hirschman Index (HHI)**: overall diversification score across positions
 - **Correlation clusters**: pairwise rolling correlation (if price history available) → flag clusters >0.85
 - **Volatility proxy**: rolling realized volatility per holding, QoQ delta
+
+**Multi-currency support:** each position's `market_value` is converted from its native `currency` into the fund's `base_currency` before any concentration math runs (`original_market_value` keeps the native-currency figure alongside it). FX rates are fetched live from `open.er-api.com` per analysis run, cached locally (`fx_rates_cache.json`, timestamped) with a short TTL to avoid refetching on every Streamlit rerun. If the live fetch fails, the cached rates are used instead (logged as a `fx_rates_stale` data-quality flag) — the live demo must keep working even if this third-party API is down. If there's no cache either, conversion is skipped entirely (flagged `fx_rates_unavailable`) rather than crashing the analysis.
 
 Each metric is compared against a **limits config** (JSON, user-editable):
 ```json
@@ -158,11 +161,12 @@ Each metric is compared against a **limits config** (JSON, user-editable):
   "sector_limit_pct": 25.0,
   "geography_limit_pct": 70.0,
   "asset_class_limit_pct": 60.0,
+  "currency_limit_pct": 60.0,
   "correlation_threshold": 0.85,
   "warning_buffer_pct": 3.0
 }
 ```
-`warning_buffer_pct` creates the WARNING band (e.g. sector at 22.4% vs 25% limit = "approaching threshold") purely in code — no Claude call needed for this classification tier.
+`warning_buffer_pct` creates the WARNING band (e.g. sector at 22.4% vs 25% limit = "approaching threshold") purely in code — no Claude call needed for this classification tier. `currency_limit_pct` is a starting point (not a regulatory figure), configurable per fund mandate like the other limits. Like geography and asset class, currency concentration is computed and shown but does **not** feed the weighted severity score in §8 — only issuer/sector breach magnitude, HHI, and correlation cluster count do.
 
 ---
 
@@ -200,6 +204,7 @@ Your job:
     "issuer_concentration": [{"issuer": "Reliance Industries Ltd", "pct": 9.8, "limit": 8.0, "status": "BREACH"}],
     "sector_concentration": [{"sector": "Energy", "pct": 22.4, "limit": 25.0, "status": "WARNING"}],
     "geography_concentration": [{"geography": "India", "pct": 61.0, "limit": 70.0, "status": "OK"}],
+    "currency_concentration": [{"currency": "INR", "pct": 88.0, "limit": 60.0, "status": "BREACH"}],
     "correlation_clusters": [{"holdings": 3, "min_corr": 0.85, "status": "FLAGGED"}],
     "volatility_signals": [{"issuer": "Reliance Industries Ltd", "vol_change_qoq_pct": 40}]
   },
@@ -225,9 +230,39 @@ Your job:
   "estimated_review_minutes": 15
 }
 ```
+`breaches[].category` enum: `issuer | sector | geography | asset_class | correlation | currency`.
+
 `rationale_summary` (a single long paragraph) was split into these four right-sized fields so a judge/reviewer can scan the verdict in seconds instead of parsing prose — `headline`/`key_drivers`/`data_gaps` drive the quick-scan UI and the Slack/Jira/dashboard escalation cards, while `compounding_signal` is the system's highest-value insight and gets its own highlighted spot in both.
 
 This structured schema is what feeds §8 and §10 directly — no second Claude call to reformat.
+
+---
+
+## 7a. Independent Claude Verification Layer (`claude/verify.py`)
+
+An on-demand, user-triggered audit - **not** part of the one-call-per-analysis budget above, and it never feeds severity scoring or the main analysis in §7. `engine/concentration.py` remains the sole source of truth; this is a separate, optional Sonnet call that independently cross-checks 3 headline figures.
+
+**Deliberately sends RAW positions, not the engine's summary table.** Feeding Claude the pre-computed concentration entries would make the check circular - it would just be agreeing with numbers derived from itself. Instead the payload is: every position's `issuer`/`sector`/`geography`/`asset_class`/`currency`/`market_value`/`original_market_value`, the fund's NAV, the limits config, and the 3 engine-computed figures to check (top sector %, top issuer %, HHI). Claude re-derives each figure from the raw positions, stating the rule it applied.
+
+**Forced JSON output schema:**
+```json
+{
+  "figures": [
+    {
+      "figure": "top_sector_pct",
+      "rule_applied": "...",
+      "claude_value": 66.0,
+      "engine_value": 66.0,
+      "status": "MATCH",
+      "note": "..."
+    }
+  ],
+  "overall_verdict": "ALL_MATCHED"
+}
+```
+`figure` enum: `top_sector_pct | top_issuer_pct | hhi`. `status`/`overall_verdict` are Claude's own judgment in the raw response, but the caller (`claude/verify.py`) **re-derives both deterministically in code** against the engine's actual value using a fixed tolerance (`MATCH_TOLERANCE_PCT_POINTS = 0.05` percentage points) before returning - Claude is never trusted as the arithmetic authority, consistent with this project's rule that Claude reasons over numbers rather than being the ground truth for them.
+
+Uses **Sonnet, not Haiku** (per CLAUDE.md's model-routing rule, this needs reliable arithmetic, not cheap templating). Logged to the audit trail with `call_type: "verification"` (the analysis call in §7 is tagged `call_type: "analysis"` for symmetry) so the two call types are distinguishable in cost reporting.
 
 ---
 
@@ -272,10 +307,10 @@ Severity → action mapping (minimum 2 actions per breach, per spec):
 |---|---|
 | LOW | Log to audit trail only |
 | MEDIUM | Slack alert to desk channel + dashboard flag |
-| HIGH | Slack alert + auto-created ticket (mock Jira object) + dashboard flag |
-| CRITICAL | Slack alert (urgent) + ticket + dashboard flag + Claude-drafted escalation memo for risk committee |
+| HIGH | Slack alert + auto-created ticket (mock Jira object) + dashboard flag + email eligible |
+| CRITICAL | Slack alert (urgent) + ticket + dashboard flag + Claude-drafted escalation memo for risk committee + email eligible |
 
-All external actions (Slack, Jira) are **simulated objects** for the demo — printed/logged with realistic payload shape, not requiring live credentials, unless you have a real webhook ready. Every triggered action is written to an **audit trail** (timestamp, portfolio ID, severity, actions taken, Claude confidence) satisfying the "complete audit trail" requirement in the brief.
+**Slack and Jira remain simulated objects** — printed/logged with realistic payload shape, not requiring live credentials. **Email is a real channel** (`escalation/email.py`): at HIGH/CRITICAL, `escalate()` composes the email (recipient/subject/body) but never sends it automatically — composition and transmission are deliberately separate functions, so the dashboard can preview the email before an explicit user click actually sends it via Gmail SMTP (smtp.gmail.com:587, STARTTLS, app-password auth from `.env`). Every triggered action — including every email send attempt, success or failure — is written to an **audit trail** (timestamp, portfolio ID, severity, actions taken, Claude confidence) satisfying the "complete audit trail" requirement in the brief.
 
 ---
 
@@ -304,9 +339,11 @@ portfolio-risk-app/
 │   └── scoring.py            # severity model
 ├── claude/
 │   ├── prompts.py            # system + schema definitions
-│   └── client.py             # API call wrapper w/ caching, token logging
+│   ├── client.py             # API call wrapper w/ caching, token logging
+│   └── verify.py             # independent verification layer (on-demand audit)
 ├── escalation/
-│   └── actions.py            # Slack/Jira/dashboard simulation
+│   ├── actions.py            # Slack/Jira/dashboard simulation + email composition
+│   └── email.py              # real Gmail SMTP send (compose/send kept separate)
 ├── app.py                    # Streamlit dashboard
 ├── audit_log.json
 ├── requirements.txt

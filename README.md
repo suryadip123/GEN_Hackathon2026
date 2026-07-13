@@ -28,8 +28,10 @@ architecture, and how to run it.
    the base score by exactly one tier, with a cited reason), and a
    confidence value.
 4. **Escalates** - maps Claude's final severity to actions (log only /
-   Slack / Slack + Jira / Slack + Jira + a Claude-Haiku-drafted memo),
-   simulated as structured objects rather than live webhooks.
+   Slack / Slack + Jira / Slack + Jira + a Claude-Haiku-drafted memo).
+   Slack and Jira stay simulated as structured objects; **email is a real
+   channel** (Gmail SMTP) at HIGH/CRITICAL - composed automatically but
+   sent only on an explicit dashboard click, never automatically.
 5. **Audits** - every Claude call (Sonnet analysis, Haiku memo drafts,
    API errors) and every escalation logs an entry to `audit_log.json`:
    timestamp, portfolio ID, severity, actions taken, confidence, and for
@@ -42,7 +44,7 @@ architecture, and how to run it.
 | 1. Ingestion | Parse, validate, normalize raw position data; flag data-quality issues rather than dropping rows | [`ingestion/normalize.py`](ingestion/normalize.py) |
 | 2. Quant Engine | Deterministic concentration math (issuer/sector/geography/asset-class %, HHI, correlation clusters) - **no Claude call** | [`engine/concentration.py`](engine/concentration.py) |
 | 3. Claude Reasoning + Scoring | The one Sonnet call (prompt + forced-JSON schema + client wrapper) and the rules-based base severity score it starts from | [`claude/prompts.py`](claude/prompts.py), [`claude/client.py`](claude/client.py), [`engine/scoring.py`](engine/scoring.py) |
-| 4. Escalation | Severity → action mapping, simulated Slack/Jira, Haiku-drafted escalation memo for CRITICAL | [`escalation/actions.py`](escalation/actions.py) |
+| 4. Escalation | Severity → action mapping, simulated Slack/Jira, Haiku-drafted escalation memo for CRITICAL, real Gmail-SMTP email at HIGH/CRITICAL | [`escalation/actions.py`](escalation/actions.py), [`escalation/email.py`](escalation/email.py) |
 | Dashboard | Streamlit UI wiring all four tasks together end to end | [`app.py`](app.py) |
 
 This mirrors the pipeline in `design_document.md` §3 (System
@@ -76,13 +78,25 @@ pip install -r requirements.txt
 # 2. Set your Anthropic API key (never commit this - export it in your shell)
 export ANTHROPIC_API_KEY="sk-ant-..."
 
-# 3. Run the dashboard
+# 3. (Optional, only needed to actually SEND escalation emails - Slack/Jira
+#    stay simulated either way) Copy .env.example to .env and fill in real
+#    values. .env is gitignored - never commit it.
+cp .env.example .env
+#   SMTP_HOST=smtp.gmail.com
+#   SMTP_PORT=587
+#   SMTP_USER=<your gmail address>
+#   SMTP_APP_PASSWORD=<a Gmail App Password, not your normal password>
+#   ESCALATION_EMAIL_TO=<default recipient, editable in the dashboard>
+
+# 4. Run the dashboard
 streamlit run app.py
 ```
 
 Opens at `http://localhost:8501`. Load the bundled sample portfolio (or
 upload your own JSON in the same shape) and step through the dashboard's
-7 sections in order - each one is a stage of the pipeline above.
+sections in order - each one is a stage of the pipeline above. Without a
+`.env`, everything still works except the "Send Escalation Email" button,
+which fails gracefully with a clear error instead of crashing the app.
 
 To exercise a single stage directly instead of the full dashboard:
 
@@ -114,9 +128,13 @@ table:
   sample portfolios are selectable from the dashboard's dropdown (a
   breach-heavy fund, a clean/diversified fund, and a structural edge
   case) to show the system isn't a one-scenario show.
-- **Automation & Escalation (20%)** - `escalation/actions.py`, exercised
-  live via dashboard §5; `audit_log.json` (dashboard §7) is the complete,
-  append-only audit trail across every stage.
+- **Automation & Escalation (20%)** - `escalation/actions.py` (severity →
+  action mapping) plus `escalation/email.py` (a genuinely-sent Gmail SMTP
+  email at HIGH/CRITICAL, not just another simulated object) - Slack and
+  Jira stay simulated by design, but email demonstrates the platform can
+  drive a real external side effect, gated behind an explicit preview +
+  send click. `audit_log.json` is the complete, append-only audit trail
+  across every stage, including every email send attempt (sent or failed).
 - **Risk Model Quality (15%)** - `engine/scoring.py`'s base score and
   band boundaries are named constants, not magic numbers; compare the
   base severity banner against Claude's adjusted verdict on the

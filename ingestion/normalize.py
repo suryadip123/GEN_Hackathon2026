@@ -12,9 +12,17 @@ audit trail requirement).
 """
 
 import json
+import os
+import sys
 from dataclasses import dataclass, field
 from typing import Optional
 
+# Allow `python ingestion/normalize.py` (not just `python -m ingestion.normalize`)
+# to find the ingestion package - direct script invocation puts this file's
+# directory on sys.path, not the repo root (same pattern as claude/client.py).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from ingestion.fx import FxRatesUnavailable, get_fx_rates
 
 REQUIRED_POSITION_FIELDS = [
     "position_id", "account_id", "instrument", "asset_class",
@@ -43,6 +51,8 @@ class NormalizedPortfolio:
     as_of: str
     positions: list
     data_quality_flags: list = field(default_factory=list)
+    fx_source: str = "n/a"        # "live" | "cache_fresh" | "cache_fallback" | "unavailable"
+    fx_fetched_at: Optional[str] = None
 
 
 def load_portfolio(path: str) -> dict:
@@ -87,13 +97,78 @@ def _validate_position(pos: dict) -> list:
     return flags
 
 
+def _apply_fx_conversion(positions: list, base_currency: str):
+    """Convert each position's market_value from its native currency into
+    base_currency (live-first FX rates, cache fallback - see ingestion.fx).
+    Returns (new_positions, flags, fx_meta).
+
+    Never raises: a total FX outage (no live fetch AND no cache at all)
+    degrades to leaving market_value as given rather than blocking the
+    analysis - the live demo must keep working even if this third-party
+    API is down.
+    """
+    flags = []
+    fx_meta = {"source": "unavailable", "fetched_at": None}
+    rates = None
+
+    try:
+        fx_result = get_fx_rates(base_currency)
+        fx_meta = {"source": fx_result.source, "fetched_at": fx_result.fetched_at}
+        rates = fx_result.rates
+        if fx_result.warning:
+            flags.append(DataQualityFlag("PORTFOLIO_LEVEL", "fx_rates_stale", fx_result.warning))
+    except FxRatesUnavailable as e:
+        flags.append(DataQualityFlag(
+            "PORTFOLIO_LEVEL", "fx_rates_unavailable",
+            f"No live or cached FX rates for base {base_currency!r} ({e}); "
+            f"market_value left unconverted (assumed already in base currency)."
+        ))
+
+    new_positions = []
+    for pos in positions:
+        native_value = pos.get("market_value")
+        native_currency = pos.get("currency")
+        new_pos = dict(pos)
+        new_pos["original_market_value"] = native_value
+
+        if rates is None or native_currency is None or native_currency == base_currency or native_value is None:
+            new_positions.append(new_pos)
+            continue
+
+        rate = rates.get(native_currency)
+        if not rate:
+            flags.append(DataQualityFlag(
+                pos.get("position_id", "UNKNOWN"), "fx_rate_missing",
+                f"No FX rate available for currency {native_currency!r} - market_value left unconverted."
+            ))
+            new_positions.append(new_pos)
+            continue
+
+        new_pos["market_value"] = native_value / rate
+        new_positions.append(new_pos)
+
+    return new_positions, flags, fx_meta
+
+
 def normalize_portfolio(raw: dict) -> NormalizedPortfolio:
-    """Validate and normalize a raw portfolio dict into a NormalizedPortfolio."""
+    """Validate and normalize a raw portfolio dict into a NormalizedPortfolio.
+
+    Positions are converted to base_currency (see _apply_fx_conversion)
+    before the NAV-mismatch check and before being handed to
+    engine/concentration.py, so all downstream concentration math always
+    operates on base-currency values - each position keeps
+    `original_market_value` (native currency) alongside the converted
+    `market_value`.
+    """
     all_flags = []
     positions = raw.get("positions", [])
+    base_currency = raw.get("base_currency", "UNKNOWN")
 
     for pos in positions:
         all_flags.extend(_validate_position(pos))
+
+    positions, fx_flags, fx_meta = _apply_fx_conversion(positions, base_currency)
+    all_flags.extend(fx_flags)
 
     total_value = sum(p.get("market_value", 0) for p in positions)
     nav = raw.get("nav", 0)
@@ -113,11 +188,13 @@ def normalize_portfolio(raw: dict) -> NormalizedPortfolio:
         portfolio_id=raw.get("portfolio_id", "UNKNOWN"),
         fund_name=raw.get("fund_name", "UNKNOWN"),
         fund_type=raw.get("fund_type", "UNKNOWN"),
-        base_currency=raw.get("base_currency", "UNKNOWN"),
+        base_currency=base_currency,
         nav=nav,
         as_of=raw.get("as_of", ""),
         positions=positions,
         data_quality_flags=all_flags,
+        fx_source=fx_meta["source"],
+        fx_fetched_at=fx_meta["fetched_at"],
     )
 
 
