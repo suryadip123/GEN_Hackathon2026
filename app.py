@@ -160,11 +160,37 @@ with tab3:
     st.dataframe(_entries_df(report.geography_concentration), width="stretch")
     if report.excluded_from_geography:
         st.caption(f"Excluded from geography calc (missing tag): {report.excluded_from_geography}")
+    st.caption(
+        "Geopolitical tier / note / source / as_of columns are a RISK-DESK CONFIG INPUT "
+        "(engine/geopolitical_risk.py) - never inferred by Claude or by this engine."
+    )
+    flagged_geos = [e for e in report.geography_concentration if e.geopolitical_flag]
+    if flagged_geos:
+        for e in flagged_geos:
+            st.warning(
+                f"**Geopolitical flag:** {e.name} at {e.pct}% exposure carries a "
+                f"{e.geopolitical_tier}-tier geopolitical risk - {e.geopolitical_note} "
+                f"(source: {e.geopolitical_source}, as_of: {e.geopolitical_as_of})"
+            )
+    else:
+        st.caption("No geography currently combines an ELEVATED/HIGH tier with material exposure.")
 with tab4:
     st.dataframe(_entries_df(report.asset_class_concentration), width="stretch")
 with tab5:
     st.dataframe(_entries_df(report.currency_concentration), width="stretch")
-    st.caption("Grouped by each position's native currency (converted market value) - a distinct risk from geography.")
+    st.caption(
+        "NET (signed) exposure per currency, not absolute - a short position reduces net "
+        "currency sensitivity rather than adding to it, unlike issuer/sector/geography/asset "
+        "class above (all absolute by design). Entries should sum to ~100% of NAV; "
+        "`NET_SHORT` means net short that currency, not a diversification breach."
+    )
+    st.metric("Sum of currency exposures", f"{report.currency_sum_pct}%")
+    if report.currency_data_quality_flag:
+        st.error(f"**Data quality issue, not a risk finding:** {report.currency_data_quality_flag}")
+    net_short_currencies = [e for e in report.currency_concentration if e.status == "NET_SHORT"]
+    if net_short_currencies:
+        for e in net_short_currencies:
+            st.info(f"**NET_SHORT:** {e.name} at {e.pct}% - net short this currency, not a concentration breach.")
 
 if report.correlation_clusters:
     st.write("Correlation clusters (>0.85):")
@@ -269,21 +295,28 @@ if st.button("Run Claude Analysis"):
 
 analysis = st.session_state.get("analysis")
 if analysis:
-    col1, col2 = st.columns(2)
-    with col1:
-        _severity_banner("Base severity (rules only)", severity_result.severity, f"score {severity_result.score}")
-    with col2:
-        adjustment = "n/a"
-        if severity_result.severity in SEVERITY_ORDER and analysis["severity"] in SEVERITY_ORDER:
-            base_rank = SEVERITY_ORDER.index(severity_result.severity)
-            claude_rank = SEVERITY_ORDER.index(analysis["severity"])
-            if claude_rank > base_rank:
-                adjustment = "ESCALATED by Claude"
-            elif claude_rank < base_rank:
-                adjustment = "DE-ESCALATED by Claude"
-            else:
-                adjustment = "unchanged"
-        _severity_banner("Claude final verdict", analysis["severity"], f"{adjustment}, confidence {analysis['confidence_pct']}%")
+    # Three distinct lines, deliberately never merged into one sentence -
+    # conflating "Claude agrees with a deterministic score" with "Claude's
+    # confidence in its own assessment" wrongly implies Claude is unsure
+    # about arithmetic that was never in question.
+    _severity_banner("Base severity (rules engine)", severity_result.severity, f"score {severity_result.score}")
+
+    agreement = "agrees, no tier adjustment"
+    if severity_result.severity in SEVERITY_ORDER and analysis["severity"] in SEVERITY_ORDER:
+        base_rank = SEVERITY_ORDER.index(severity_result.severity)
+        claude_rank = SEVERITY_ORDER.index(analysis["severity"])
+        if claude_rank != base_rank:
+            direction = "escalated" if claude_rank > base_rank else "de-escalated"
+            agreement = (
+                f"adjusted from {severity_result.severity} ({direction} one tier), "
+                f"reason: see Key Drivers / Compounding Signal below"
+            )
+    _severity_banner("Claude's verdict", analysis["severity"], agreement)
+
+    st.info(
+        f"**Claude's confidence in its assessment:** {analysis['confidence_pct']}% - "
+        f"{analysis['confidence_rationale']}"
+    )
 
     st.subheader(analysis["headline"])
 
@@ -378,6 +411,7 @@ if analysis:
             recipient_input = st.text_input(
                 "Recipient", value=draft["recipient"] or DEFAULT_ESCALATION_EMAIL_TO,
                 key=f"email_recipient_{source_key}",
+                help="Multiple recipients: separate with commas, semicolons, and/or whitespace.",
             )
             with st.expander("Preview composed email (not sent)", expanded=True):
                 st.markdown(f"**Subject:** {draft['subject']}")
@@ -385,31 +419,35 @@ if analysis:
 
             if st.button("Send Escalation Email"):
                 try:
-                    send_email(
+                    send_result = send_email(
                         recipient=recipient_input, subject=draft["subject"], body=draft["body"],
                         portfolio_id=report.portfolio_id, severity=escalation_result["severity"],
                     )
+                    status = "partial" if send_result.failed else "sent"
                     st.session_state["email_send_result"] = {
-                        "status": "sent", "recipient": recipient_input,
+                        "status": status, "succeeded": send_result.succeeded,
+                        "failed": send_result.failed,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
                 except EmailEscalationError as e:
                     st.session_state["email_send_result"] = {
-                        "status": "failed", "recipient": recipient_input, "error": str(e),
+                        "status": "failed", "succeeded": [], "failed": {}, "error": str(e),
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
             email_send_result = st.session_state.get("email_send_result")
             if email_send_result:
+                ts = email_send_result["timestamp"]
                 if email_send_result["status"] == "sent":
-                    st.success(
-                        f"Sent to {email_send_result['recipient']} at {email_send_result['timestamp']}."
-                    )
+                    st.success(f"Sent to {', '.join(email_send_result['succeeded'])} at {ts}.")
+                elif email_send_result["status"] == "partial":
+                    st.warning(f"Partial failure at {ts} - some recipients were rejected:")
+                    for addr in email_send_result["succeeded"]:
+                        st.markdown(f"- **{addr}**: sent")
+                    for addr, err in email_send_result["failed"].items():
+                        st.markdown(f"- **{addr}**: failed - {err}")
                 else:
-                    st.error(
-                        f"Send failed to {email_send_result['recipient']} at "
-                        f"{email_send_result['timestamp']}: {email_send_result['error']}"
-                    )
+                    st.error(f"Send failed at {ts}: {email_send_result.get('error', 'unknown error')}")
 else:
     st.info("Run the Claude analysis first.")
 

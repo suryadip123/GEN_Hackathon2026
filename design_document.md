@@ -147,7 +147,7 @@ Computed in code, per portfolio:
 - **Sector concentration**: grouped `market_value / NAV` by sector
 - **Geography concentration**: grouped `market_value / NAV` by geography
 - **Asset class concentration**: grouped `market_value / NAV` by asset class
-- **Currency concentration**: grouped `market_value / NAV` by each position's native `currency` — a distinct risk from geography (e.g. a US-listed ADR can be EUR-denominated), so it groups on the currency tag, not the geography tag
+- **Currency concentration**: grouped `market_value / NAV` by each position's native `currency` — a distinct risk from geography (e.g. a US-listed ADR can be EUR-denominated), so it groups on the currency tag, not the geography tag. **Unlike every other category above, this sums SIGNED (net) market_value, not `abs()`** — see the dedicated explanation immediately below; this is a deliberate, documented exception, not an inconsistency.
 - **Herfindahl-Hirschman Index (HHI)**: overall diversification score across positions
 - **Correlation clusters**: pairwise rolling correlation (if price history available) → flag clusters >0.85
 - **Volatility proxy**: rolling realized volatility per holding, QoQ delta
@@ -167,6 +167,20 @@ Each metric is compared against a **limits config** (JSON, user-editable):
 }
 ```
 `warning_buffer_pct` creates the WARNING band (e.g. sector at 22.4% vs 25% limit = "approaching threshold") purely in code — no Claude call needed for this classification tier. `currency_limit_pct` is a starting point (not a regulatory figure), configurable per fund mandate like the other limits. Like geography and asset class, currency concentration is computed and shown but does **not** feed the weighted severity score in §8 — only issuer/sector breach magnitude, HHI, and correlation cluster count do.
+
+**Why currency is NET while issuer/sector/geography/asset-class are GROSS/absolute:** issuer and sector concentration correctly use absolute market value — a short Reliance position still carries real single-name Reliance risk and must not net against a long Reliance position elsewhere in the book; a short and a long are two separate exposures to the same name, not offsetting ones. Currency is a fundamentally different quantity: it measures how much of the fund's NAV is denominated in each currency, i.e. how NAV moves when FX moves. That quantity has a conservation law — currency exposures should sum to ~100% of NAV, because every unit of the fund is denominated in *something*. A short USD-denominated position genuinely **reduces** the fund's USD sensitivity; counting it at absolute magnitude (the rule that's correct for every other category) asserts the opposite.
+
+This was not a hypothetical concern — the original implementation used `abs(market_value)` for currency too, and it produced **106% USD exposure** on `port_2026_0501.json` (a fund with a short S&P futures hedge). That is not a risk finding; it's a violated identity — a fund cannot have more currency exposure than it has money. The >100% output is precisely what revealed the modeling error (full worked example with real before/after numbers in [`Custom_MD_Files/how_concentration_calculations_work.md`](Custom_MD_Files/how_concentration_calculations_work.md)). The fix: `engine/concentration.py`'s `_compute_currency_concentration()` sums SIGNED `market_value` (the FX-converted figure, not `original_market_value`) per currency, divided by NAV — issuer/sector/geography/asset_class are unchanged and keep the absolute-value rule.
+
+Because the ~100%-of-NAV identity should now hold, it's checked explicitly: `CURRENCY_SUM_TOLERANCE_PCT_POINTS` (±1.0pp, a named constant) bounds the acceptable drift, and a sum outside that tolerance sets `currency_data_quality_flag` (surfaced in `structural_notes` and in the dashboard) — a real deviation means a data problem (missing/garbled currency tag, FX conversion bug), not a portfolio risk, and is never folded into the severity narrative as if it were one.
+
+A currency's net exposure can legitimately be **negative** (net short that currency) — this is classified `NET_SHORT`, not forced into the OK/WARNING/BREACH bands, which encode a long-side diversification limit ("too much in one currency") that doesn't apply to being net short one. `NET_SHORT` never appears in Claude's WARNING/BREACH `breaches` list and must never be cited as a concentration concern (see §7's prompt instruction).
+
+**Geopolitical risk overlay (`engine/geopolitical_risk.py`):** a RISK-DESK CONFIG INPUT, not something Claude infers from its own world knowledge. Every geography appearing across `data/sample_portfolios/*.json` has an explicit entry — `tier` (LOW/ELEVATED/HIGH), `note`, `source`, and `as_of` — and any geography not listed falls back to LOW with a note saying so, never a silent default. The values shipped in this repo are **illustrative placeholder data for the demo**, not a real current assessment; a real deployment's risk desk owns and maintains this file.
+
+The whole point of `source` and `as_of` is auditability — a reviewer can trace any tier back to who said so and when. **An absent or stale `as_of` date is itself a risk-management concern**: a tier nobody has revisited in months signals a process gap, not just a geography-level fact, and should be treated as a data-quality issue in its own right during a real review.
+
+This overlay attaches to `geography_concentration` entries alongside `pct`/`limit`/`status`, and is a distinct signal from the limit-based OK/WARNING/BREACH classification, which stays purely limit-based. A `geopolitical_flag` boolean is computed per geography: true only when `tier` is ELEVATED/HIGH **and** exposure is at or above `material_geography_exposure_pct` (`MATERIAL_GEOGRAPHY_EXPOSURE_PCT` in `engine/geopolitical_risk.py`, default 15% — a named constant, not a magic number). A geography can be well under its concentration limit and still carry material exposure to a HIGH-tier region — that's exactly the case this flag exists to catch. Like currency/asset-class/geography themselves, the geopolitical tier does **not** feed the weighted severity score in §8; it's surfaced in `structural_notes` and passed to Claude as a candidate compounding signal (§7).
 
 ---
 
@@ -203,7 +217,7 @@ Your job:
   "metrics": {
     "issuer_concentration": [{"issuer": "Reliance Industries Ltd", "pct": 9.8, "limit": 8.0, "status": "BREACH"}],
     "sector_concentration": [{"sector": "Energy", "pct": 22.4, "limit": 25.0, "status": "WARNING"}],
-    "geography_concentration": [{"geography": "India", "pct": 61.0, "limit": 70.0, "status": "OK"}],
+    "geography_concentration": [{"geography": "India", "pct": 61.0, "limit": 70.0, "status": "OK", "geopolitical_tier": "HIGH", "geopolitical_note": "...", "geopolitical_source": "Risk Desk weekly geopolitical briefing", "geopolitical_as_of": "2026-07-10", "geopolitical_flag": true}],
     "currency_concentration": [{"currency": "INR", "pct": 88.0, "limit": 60.0, "status": "BREACH"}],
     "correlation_clusters": [{"holdings": 3, "min_corr": 0.85, "status": "FLAGGED"}],
     "volatility_signals": [{"issuer": "Reliance Industries Ltd", "vol_change_qoq_pct": 40}]
@@ -223,6 +237,7 @@ Your job:
   "historical_comparison": "none available | <comparison text>",
   "severity": "HIGH",
   "confidence_pct": 91,
+  "confidence_rationale": "One sentence naming the specific information gap or judgment uncertainty (e.g. no live prices, unknown fund mandate) - never uncertainty about the supplied arithmetic.",
   "headline": "One sentence: verdict + urgency.",
   "key_drivers": ["short bullet 1", "short bullet 2", "short bullet 3"],
   "compounding_signal": "One paragraph: is this one root cause manifesting across categories, or genuinely independent risks?",
@@ -233,6 +248,8 @@ Your job:
 `breaches[].category` enum: `issuer | sector | geography | asset_class | correlation | currency`.
 
 `rationale_summary` (a single long paragraph) was split into these four right-sized fields so a judge/reviewer can scan the verdict in seconds instead of parsing prose — `headline`/`key_drivers`/`data_gaps` drive the quick-scan UI and the Slack/Jira/dashboard escalation cards, while `compounding_signal` is the system's highest-value insight and gets its own highlighted spot in both.
+
+**What `confidence_pct` means (and doesn't):** it is Claude's self-reported confidence in its own qualitative risk *assessment and rationale* — never in the deterministic metrics, which are handed to Claude as fact and are never in question. It is **directional, not a calibrated probability** (91% doesn't mean "91% of the time this exact call is right" in any statistically rigorous sense) — treat it as a relative signal of how much residual judgment uncertainty Claude sees in its own reasoning, not a precision figure. `confidence_rationale` is required specifically so that uncertainty is never vague or unfalsifiable — it must name the concrete information gap or judgment call driving the number (e.g. no live prices, unknown fund mandate, no forward-looking data), and must never cite uncertainty about the arithmetic. The dashboard renders this on its own line, never merged into the same sentence as the severity-agreement verdict — conflating the two would wrongly imply Claude is unsure about a deterministic score it fully agrees with.
 
 This structured schema is what feeds §8 and §10 directly — no second Claude call to reformat.
 
@@ -336,7 +353,8 @@ portfolio-risk-app/
 │   └── normalize.py
 ├── engine/
 │   ├── concentration.py      # deterministic metrics
-│   └── scoring.py            # severity model
+│   ├── scoring.py            # severity model
+│   └── geopolitical_risk.py  # risk-desk-owned geography tier config (not Claude-inferred)
 ├── claude/
 │   ├── prompts.py            # system + schema definitions
 │   ├── client.py             # API call wrapper w/ caching, token logging

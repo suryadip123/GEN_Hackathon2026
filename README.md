@@ -26,7 +26,12 @@ architecture, and how to run it.
    rules-based base severity score, and returns breach reasoning,
    conflicting/compounding signals, a severity verdict (which may adjust
    the base score by exactly one tier, with a cited reason), and a
-   confidence value.
+   confidence value. That confidence is self-reported and **directional,
+   not a calibrated probability** - it reflects Claude's confidence in its
+   own *qualitative assessment*, never in the deterministic metrics (which
+   carry no uncertainty), and always comes with a one-sentence
+   `confidence_rationale` naming the actual information gap behind it
+   (e.g. no live prices, unknown fund mandate) rather than a vague number.
 4. **Escalates** - maps Claude's final severity to actions (log only /
    Slack / Slack + Jira / Slack + Jira + a Claude-Haiku-drafted memo).
    Slack and Jira stay simulated as structured objects; **email is a real

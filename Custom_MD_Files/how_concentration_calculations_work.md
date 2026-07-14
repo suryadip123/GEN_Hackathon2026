@@ -88,6 +88,72 @@ but inside the buffer zone.
   answers "what fraction of the whole portfolio depends on this?" - which
   is exactly what a concentration limit is meant to police.
 
+## The one exception: currency is NET, not absolute
+
+Every rule above - sum absolute value, ignore direction - is deliberately
+**reversed** for currency concentration. This section exists because that
+reversal was learned the hard way: the first implementation used the same
+`abs(market_value)` rule for currency as for issuer/sector, and it produced
+a number that cannot exist for a real portfolio.
+
+### The bug this fixed, in real numbers
+
+`port_2026_0501.json` ("Global Diversified Balanced Fund") holds a short
+S&P 500 index futures position (`POS-C19`, market value -1.8M USD) as a
+hedge, alongside its long USD-denominated holdings, on a 60M USD NAV.
+
+**Before the fix** (absolute value, same rule as issuer/sector):
+```
+USD exposure = sum of abs(market_value) for every USD position
+             = (all the long USD positions) + abs(-1.8M)   <- short ADDS instead of subtracting
+             = 106.0% of NAV
+```
+
+A fund reporting **106% currency exposure** is not a risk finding - it's
+an impossible number. A fund cannot have more currency exposure than it
+has money; every dollar of NAV is denominated in exactly one currency (or
+split across several), so total currency exposure is bounded at 100% of
+NAV by definition. Seeing 106% was the signal that the calculation itself,
+not the portfolio, was wrong.
+
+**After the fix** (signed/net value):
+```
+USD exposure = sum of SIGNED market_value for every USD position, / NAV
+             = (all the long USD positions) + (-1.8M)   <- short REDUCES the total
+             = 100.0% of NAV
+```
+
+100% is exactly right for a fund where every position is USD-denominated:
+the short futures hedge genuinely reduces the fund's net sensitivity to USD
+moves, so it must subtract, not add.
+
+### Why currency reverses the rule that's correct everywhere else
+
+Issuer/sector/geography/asset-class concentration all answer the same
+question: *"how much single-name/sector/region/asset-type risk is riding
+on this bucket?"* A short Reliance position and a long Reliance position
+are not offsetting - they're two separate exposures to the same
+name/event, so both count at full (absolute) magnitude. That reasoning is
+sound and stays unchanged.
+
+Currency concentration answers a *different* question: *"how does this
+fund's NAV move when this currency moves?"* That's a net sensitivity, and
+net sensitivities net. A short USD position genuinely offsets a long USD
+position's FX sensitivity - if you're long $100 of US equity and short $30
+of USD via a hedge, your fund's real sensitivity to USD moving is $70, not
+$130. Because it's a net sensitivity, currency exposures also have a
+conservation law that issuer/sector/geography/asset-class do not: they
+should sum to ~100% of NAV, since every unit of the fund is denominated in
+*something*. `engine/concentration.py` now checks that sum explicitly
+(`CURRENCY_SUM_TOLERANCE_PCT_POINTS`, ±1.0pp) and raises a data-quality
+flag - not a risk finding - if it's materially off.
+
+One more consequence of going net: the total can be **negative** for a
+given currency (net short it), which is classified `NET_SHORT` rather than
+forced into the OK/WARNING/BREACH bands built for "too much long exposure
+in one currency" - being net short a currency is a different risk shape
+entirely, not a diversification concern.
+
 ## Where Claude comes in (and where it doesn't)
 
 Claude never recomputes or touches these percentages. It receives the

@@ -167,6 +167,23 @@ def compute_severity(report) -> SeverityResult:
     else:
         hhi_score = _hhi_score(report.hhi)
 
+    # Geopolitical overlay (engine/geopolitical_risk.py) - same precedent as
+    # geography/asset-class/currency: computed and surfaced, never fed into
+    # the weighted composite below. No new weight is introduced for it.
+    for entry in report.geography_concentration:
+        if getattr(entry, "geopolitical_flag", False):
+            structural_notes.append(
+                f"Geopolitical overlay: {entry.name} at {entry.pct}% exposure carries a "
+                f"{entry.geopolitical_tier}-tier geopolitical risk (source: {entry.geopolitical_source}, "
+                f"as_of: {entry.geopolitical_as_of}) - surfaced for Claude's reasoning, does not affect this score."
+            )
+
+    # Currency's net-exposure sum invariant (engine/concentration.py) is a
+    # data-quality signal, not a risk finding - surfaced here for visibility,
+    # never fed into the composite below.
+    if getattr(report, "currency_data_quality_flag", None):
+        structural_notes.append(f"Currency data quality: {report.currency_data_quality_flag}")
+
     composite = round(
         WEIGHTS["issuer_breach"] * issuer_score
         + WEIGHTS["sector_breach"] * sector_score

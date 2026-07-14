@@ -60,6 +60,25 @@ def _entry_to_dict(entry) -> dict:
     }
 
 
+def _geography_entry_to_dict(entry) -> dict:
+    """Like _entry_to_dict, plus the risk-desk-configured geopolitical
+    overlay (engine/geopolitical_risk.py) - tier, note, source, as_of, and
+    the material-exposure flag. This is desk config data, never Claude's
+    own world knowledge; source/as_of are included specifically so Claude's
+    cited reason (if it uses this as a compounding signal) can reference
+    them instead of inventing its own claim.
+    """
+    d = _entry_to_dict(entry)
+    d.update({
+        "geopolitical_tier": entry.geopolitical_tier,
+        "geopolitical_note": entry.geopolitical_note,
+        "geopolitical_source": entry.geopolitical_source,
+        "geopolitical_as_of": entry.geopolitical_as_of,
+        "geopolitical_flag": entry.geopolitical_flag,
+    })
+    return d
+
+
 def _cluster_to_dict(cluster) -> dict:
     return {"holdings": cluster.holdings, "min_corr": cluster.min_corr, "status": cluster.status}
 
@@ -117,9 +136,15 @@ def build_user_message(portfolio, report, severity_result, historical_incidents=
         "metrics": {
             "issuer_concentration": [_entry_to_dict(e) for e in report.issuer_concentration],
             "sector_concentration": [_entry_to_dict(e) for e in report.sector_concentration],
-            "geography_concentration": [_entry_to_dict(e) for e in report.geography_concentration],
+            "geography_concentration": [_geography_entry_to_dict(e) for e in report.geography_concentration],
             "asset_class_concentration": [_entry_to_dict(e) for e in report.asset_class_concentration],
             "currency_concentration": [_entry_to_dict(e) for e in report.currency_concentration],
+            # Currency is NET (signed), unlike every other category above -
+            # see the currency_is_net_exposure note in the system prompt.
+            # Entries should sum to ~100% of NAV; a real deviation is a
+            # data problem, not a risk finding (see the flag below).
+            "currency_sum_pct": report.currency_sum_pct,
+            "currency_data_quality_flag": report.currency_data_quality_flag,
             "hhi": report.hhi,
             "correlation_clusters": [_cluster_to_dict(c) for c in report.correlation_clusters],
             "volatility_signals": [_volatility_to_dict(v) for v in report.volatility_signals],

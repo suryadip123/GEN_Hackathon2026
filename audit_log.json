@@ -640,5 +640,376 @@
     "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
     "severity": "CRITICAL",
     "outcome": "sent"
+  },
+  {
+    "timestamp": "2026-07-14T09:29:45.917557+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "elapsed_s": 9.25,
+    "input_tokens": 2613,
+    "output_tokens": 449,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.009716,
+    "overall_verdict": "ALL_MATCHED"
+  },
+  {
+    "timestamp": "2026-07-14T09:30:51.079278+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 40.86,
+    "input_tokens": 2095,
+    "output_tokens": 2036,
+    "cache_creation_input_tokens": 2322,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.030355,
+    "severity": "CRITICAL",
+    "confidence_pct": 92
+  },
+  {
+    "timestamp": "2026-07-14T09:31:42.367264+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 891,
+    "output_tokens": 432,
+    "cost_usd": 0.003051,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-14T09:31:42.380203+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "severity": "CRITICAL",
+    "confidence_pct": 92,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "escalation_email_drafted",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-14T09:32:08.931044+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipient": "suryadip.kumar@wissen.com",
+    "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
+    "severity": "CRITICAL",
+    "outcome": "sent"
+  },
+  {
+    "timestamp": "2026-07-14T16:08:29.476432+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "elapsed_s": 6.02,
+    "input_tokens": 2613,
+    "output_tokens": 487,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.010096,
+    "overall_verdict": "ALL_MATCHED"
+  },
+  {
+    "timestamp": "2026-07-14T16:09:22.370474+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 24.86,
+    "input_tokens": 2095,
+    "output_tokens": 2278,
+    "cache_creation_input_tokens": 2322,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.032775,
+    "severity": "CRITICAL",
+    "confidence_pct": 90
+  },
+  {
+    "timestamp": "2026-07-14T16:10:07.668762+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 895,
+    "output_tokens": 480,
+    "cost_usd": 0.003295,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-14T16:10:07.672482+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "severity": "CRITICAL",
+    "confidence_pct": 90,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "escalation_email_drafted",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-14T16:10:31.305835+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipient": "suryadip.kumar@wissen.com, geethaseethalakshmi.muppidathiraj@wissen.com",
+    "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
+    "severity": "CRITICAL",
+    "outcome": "failed",
+    "error": "{'suryadip.kumar@wissen.com, geethaseethalakshmi.muppidathiraj@wissen.com': (553, b'5.1.3 The recipient address <suryadip.kumar@wissen.com, geethaseethalakshmi.\\n5.1.3 muppidathiraj@wissen.com> is not a valid RFC 5321 address. For more\\n5.1.3 information, go to\\n5.1.3  https://support.google.com/a/answer/3221692 and review RFC 5321\\n5.1.3 specifications. a92af1059eb24-13b9bb8682bsm21839722c88.10 - gsmtp')}"
+  },
+  {
+    "timestamp": "2026-07-14T16:11:07.226542+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipient": "suryadip.kumar@wissen.com geethaseethalakshmi.muppidathiraj@wissen.com",
+    "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
+    "severity": "CRITICAL",
+    "outcome": "failed",
+    "error": "{'suryadip.kumar@wissen.com geethaseethalakshmi.muppidathiraj@wissen.com': (553, b'5.1.3 The recipient address <suryadip.kumar@wissen.com geethaseethalakshmi.m\\n5.1.3 uppidathiraj@wissen.com> is not a valid RFC 5321 address. For more\\n5.1.3 information, go to\\n5.1.3  https://support.google.com/a/answer/3221692 and review RFC 5321\\n5.1.3 specifications. 5a478bee46e88-31174839f89sm81369812eec.10 - gsmtp')}"
+  },
+  {
+    "timestamp": "2026-07-14T16:17:34.334161+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipients": [
+      "suryadip.kumar@wissen.com",
+      "karanusri12345@gmail.com"
+    ],
+    "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
+    "severity": "CRITICAL",
+    "outcome": "sent"
+  },
+  {
+    "timestamp": "2026-07-14T16:18:01.508190+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipients": [
+      "suryadip.kumar@wissen.com",
+      "not-an-email"
+    ],
+    "subject": "[BUGFIX TEST] one valid one malformed",
+    "severity": "CRITICAL",
+    "outcome": "failed",
+    "error": "Invalid recipient address(es), nothing sent: not-an-email"
+  },
+  {
+    "timestamp": "2026-07-14T16:18:35.791831+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipients": [
+      "suryadip.kumar@wissen.com",
+      "thisuserdoesnotexist999999xyz@gmail.com"
+    ],
+    "subject": "[BUGFIX TEST] partial failure check",
+    "severity": "CRITICAL",
+    "outcome": "sent"
+  },
+  {
+    "timestamp": "2026-07-14T16:20:57.282212+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "elapsed_s": 6.22,
+    "input_tokens": 2613,
+    "output_tokens": 500,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.010226,
+    "overall_verdict": "ALL_MATCHED"
+  },
+  {
+    "timestamp": "2026-07-14T16:21:47.334965+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 25.16,
+    "input_tokens": 2095,
+    "output_tokens": 2274,
+    "cache_creation_input_tokens": 2322,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.032735,
+    "severity": "CRITICAL",
+    "confidence_pct": 88
+  },
+  {
+    "timestamp": "2026-07-14T16:22:03.158051+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 959,
+    "output_tokens": 458,
+    "cost_usd": 0.003249,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-14T16:22:03.161388+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "severity": "CRITICAL",
+    "confidence_pct": 88,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "escalation_email_drafted",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
+  },
+  {
+    "timestamp": "2026-07-14T16:22:29.195397+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "call_type": "escalation_email",
+    "recipients": [
+      "suryadip.kumar@wissen.com",
+      "geethaseethalakshmi.muppidathiraj@wissen.com"
+    ],
+    "subject": "[CRITICAL] Concentration breach - PORT-2026-0777 (Crimson Peak Concentrated Opportunities Fund)",
+    "severity": "CRITICAL",
+    "outcome": "sent"
+  },
+  {
+    "timestamp": "2026-07-14T16:46:53.809424+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "elapsed_s": 5.84,
+    "input_tokens": 2631,
+    "output_tokens": 467,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.009932,
+    "overall_verdict": "ALL_MATCHED"
+  },
+  {
+    "timestamp": "2026-07-14T16:47:25.000280+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 22.34,
+    "input_tokens": 2483,
+    "output_tokens": 2223,
+    "cache_creation_input_tokens": 2801,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.034198,
+    "severity": "CRITICAL",
+    "confidence_pct": 92
+  },
+  {
+    "timestamp": "2026-07-14T16:54:29.690475+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 52.86,
+    "input_tokens": 2483,
+    "output_tokens": 2510,
+    "cache_creation_input_tokens": 3194,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.038051,
+    "severity": "CRITICAL",
+    "confidence_pct": 82
+  },
+  {
+    "timestamp": "2026-07-14T16:55:15.729573+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "verification",
+    "elapsed_s": 6.04,
+    "input_tokens": 2631,
+    "output_tokens": 476,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.010022,
+    "overall_verdict": "ALL_MATCHED"
+  },
+  {
+    "timestamp": "2026-07-14T17:00:23.757897+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 27.33,
+    "input_tokens": 2483,
+    "output_tokens": 2140,
+    "cache_creation_input_tokens": 3194,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.034351,
+    "severity": "CRITICAL",
+    "confidence_pct": 78
+  },
+  {
+    "timestamp": "2026-07-14T17:00:55.421442+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 18.85,
+    "input_tokens": 4787,
+    "output_tokens": 1722,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 3194,
+    "cost_usd": 0.027433,
+    "severity": "MEDIUM",
+    "confidence_pct": 72
+  },
+  {
+    "timestamp": "2026-07-14T17:01:37.414833+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 19.38,
+    "input_tokens": 4787,
+    "output_tokens": 1741,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 3194,
+    "cost_usd": 0.027623,
+    "severity": "MEDIUM",
+    "confidence_pct": 70
+  },
+  {
+    "timestamp": "2026-07-14T17:13:33.145288+00:00",
+    "portfolio_id": "PORT-2026-0501",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 21.11,
+    "input_tokens": 4816,
+    "output_tokens": 1829,
+    "cache_creation_input_tokens": 3549,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.036795,
+    "severity": "MEDIUM",
+    "confidence_pct": 70
+  },
+  {
+    "timestamp": "2026-07-14T17:19:26.681352+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-sonnet-5",
+    "call_type": "analysis",
+    "elapsed_s": 27.37,
+    "input_tokens": 2512,
+    "output_tokens": 2189,
+    "cache_creation_input_tokens": 3549,
+    "cache_read_input_tokens": 0,
+    "cost_usd": 0.035786,
+    "severity": "CRITICAL",
+    "confidence_pct": 78
+  },
+  {
+    "timestamp": "2026-07-14T17:21:12.679964+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "model": "claude-haiku-4-5",
+    "input_tokens": 1001,
+    "output_tokens": 531,
+    "cost_usd": 0.003656,
+    "purpose": "escalation_memo_draft"
+  },
+  {
+    "timestamp": "2026-07-14T17:21:12.684324+00:00",
+    "portfolio_id": "PORT-2026-0777",
+    "severity": "CRITICAL",
+    "confidence_pct": 78,
+    "actions_taken": [
+      "slack_alert",
+      "jira_ticket",
+      "escalation_email_drafted",
+      "dashboard_flag",
+      "escalation_memo"
+    ]
   }
 ]
